@@ -1,0 +1,18 @@
+# Dependency
+node_modules/
+
+# Next.js (apps/web 내부의 .next 폴더를 찾아 제외함)
+**/ .next/
+**/out/
+
+# Python / FastAPI (나중에 추가될 백엔드용)
+**/__pycache__/
+**/*.pyc
+.venv/
+
+# Environment
+.env*
+
+# OS & IDE
+.DS_Store
+.vscode/

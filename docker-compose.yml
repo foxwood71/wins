@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+    # Database
+    db:
+        image: postgres:15-alpine
+        container_name: wins-db
+        environment:
+            POSTGRES_USER: user
+            POSTGRES_PASSWORD: password
+            POSTGRES_DB: wins_db
+        ports:
+            - "5432:5432"
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        networks:
+            - wins-network
+
+    # Frontend (Next.js) - Dev Mode
+    web:
+        build:
+            context: ./apps/web
+            dockerfile: Dockerfile
+        container_name: wins-web
+        ports:
+            - "3000:3000"
+        volumes:
+            - ./apps/web:/app
+            - /app/node_modules
+        depends_on:
+            - db
+        networks:
+            - wins-network
+
+networks:
+    wins-network:
+        driver: bridge
+
+volumes:
+    postgres_data:
