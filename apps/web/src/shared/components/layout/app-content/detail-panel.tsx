@@ -28,7 +28,7 @@ export function DetailPanel({
   onSave,
 }: DetailPanelProps) {
   return (
-    <div className="flex flex-col h-full gap-4 animate-in fade-in duration-300 font-sans">
+    <div className="flex flex-col h-full gap-4 animate-in fade-in duration-300 font-sans min-w-0">
       {/* 상단 프로필 카드 */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-6 py-5 shrink-0 flex items-center gap-5 text-slate-900">
         <div className="h-16 w-16 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center text-slate-300 shadow-inner">
@@ -45,7 +45,7 @@ export function DetailPanel({
       </div>
 
       {/* 하단 상세 정보 및 버튼 영역 */}
-      <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+      <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-w-0">
         {tabs && (
           <div className="flex items-end h-14 border-b border-slate-100 px-6 shrink-0 bg-slate-50/30">
             {tabs}
@@ -53,7 +53,7 @@ export function DetailPanel({
         )}
 
         <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
-          <div className="w-full max-w-[1200px]">{children}</div>
+          <div className="w-full ">{children}</div>
         </div>
 
         {(onEdit || onSave) && (

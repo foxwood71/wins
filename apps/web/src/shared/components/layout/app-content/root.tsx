@@ -62,7 +62,12 @@ export function AppContent({
 
           {/* Right Panel*/}
           <ResizablePanel defaultSize={75}>
-            <div className="flex flex-col h-full overflow-y-auto p-4 pl-1">
+            {/* ✨ [수정 포인트]
+               1. overflow-y-auto 제거 -> 스크롤은 DetailPanel 내부에서 처리
+               2. overflow-hidden 추가 -> 패널 밖으로 나가는 것 방지
+               3. min-w-0 추가 -> ⭐ 핵심! 내부 컨텐츠가 패널보다 커도 강제로 줄어들게 허용
+            */}
+            <div className="flex flex-col h-full overflow-hidden p-4 pl-1 min-w-0">
               {rightPanel}
             </div>
           </ResizablePanel>

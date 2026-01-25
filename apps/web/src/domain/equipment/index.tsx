@@ -1,8 +1,8 @@
 "use client";
 
 import { useEquipment } from "./hooks/use-equipment";
-import { MainView } from "./ui/main-view";
-import { EQUIPMENT_DATA } from "./data/equipment-mock.ts";
+import { EquipmentManagementView } from "./ui/equipment-management-view";
+import { EQUIPMENT_DATA } from "./data/equipment-mock";
 
 /**
  * EquipmentManagement: 장비 관리 도메인의 메인 엔트리 포인트입니다.
@@ -13,12 +13,12 @@ export default function EquipmentManagement() {
     useEquipment(EQUIPMENT_DATA);
 
   return (
-    <MainView
-      data={filteredData}
-      selectedItem={selectedItem}
-      searchTerm={searchTerm}
-      onSelect={handleSelect}
-      onSearchChange={handleSearch}
+    <EquipmentManagementView
+      data={filteredData} // 필터링된 목록 데이터
+      selectedItem={selectedItem} // 현재 선택된 상세 아이템
+      searchTerm={searchTerm} // 현재 검색어
+      onSelect={handleSelect} // 아이템 선택 핸들러
+      onSearchChange={handleSearch} // 검색어 변경 핸들러
     />
   );
 }

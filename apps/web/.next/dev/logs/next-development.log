@@ -1,0 +1,472 @@
+[00:00:01.837] Server  LOG     ✓ Ready in 1568ms
+[00:00:04.887] Server  LOG     ○ Compiling /equipment ...
+[00:00:05.822] Server  ERROR   ⨯ ./src/domain/equipment/index.tsx:5:1
+Export EQUIPMENT_DATA doesn't exist in target module
+  3 | import { useEquipment } from "./hooks/use-equipment";
+  4 | import { EquipmentManagementView } from "./ui/equipment-management-view";
+> 5 | import { EQUIPMENT_DATA } from "./data/equipment-mock.ts";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | /**
+  8 |  * EquipmentManagement: 장비 관리 도메인의 메인 엔트리 포인트입니다.
+
+The export EQUIPMENT_DATA was not found in module [project]/src/domain/equipment/data/equipment-mock.ts.ts [app-client] (ecmascript).
+Did you mean to import MOCK_DATA?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./src/domain/equipment/index.tsx
+    ./src/app/(main)/equipment/page.tsx
+
+
+
+./src/domain/equipment/index.tsx:5:1
+Export EQUIPMENT_DATA doesn't exist in target module
+  3 | import { useEquipment } from "./hooks/use-equipment";
+  4 | import { EquipmentManagementView } from "./ui/equipment-management-view";
+> 5 | import { EQUIPMENT_DATA } from "./data/equipment-mock.ts";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | /**
+  8 |  * EquipmentManagement: 장비 관리 도메인의 메인 엔트리 포인트입니다.
+
+The export EQUIPMENT_DATA was not found in module [project]/src/domain/equipment/data/equipment-mock.ts.ts [app-ssr] (ecmascript).
+Did you mean to import MOCK_DATA?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./src/domain/equipment/index.tsx
+    ./src/app/(main)/equipment/page.tsx
+
+
+[00:00:06.171] Browser ERROR   uncaughtError: Error: ./src/domain/equipment/index.tsx:5:1
+Export EQUIPMENT_DATA doesn't exist in target module
+  3 | import { useEquipment } from "./hooks/use-equipment";
+  4 | import { EquipmentManagementView } from "./ui/equipment-management-view";
+> 5 | import { EQUIPMENT_DATA } from "./data/equipment-mock.ts";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | /**
+  8 |  * EquipmentManagement: 장비 관리 도메인의 메인 엔트리 포인트입니다.
+
+The export EQUIPMENT_DATA was not found in module [project]/src/domain/equipment/data/equipment-mock.ts.ts [app-client] (ecmascript).
+Did you mean to import MOCK_DATA?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./src/domain/equipment/index.tsx
+    ./src/app/(main)/equipment/page.tsx
+
+
+[00:00:06.383] Browser ERROR   ./src/domain/equipment/index.tsx:5:1
+Export EQUIPMENT_DATA doesn't exist in target module
+  3 | import { useEquipment } from "./hooks/use-equipment";
+  4 | import { EquipmentManagementView } from "./ui/equipment-management-view";
+> 5 | import { EQUIPMENT_DATA } from "./data/equipment-mock.ts";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | /**
+  8 |  * EquipmentManagement: 장비 관리 도메인의 메인 엔트리 포인트입니다.
+
+The export EQUIPMENT_DATA was not found in module [project]/src/domain/equipment/data/equipment-mock.ts.ts [app-client] (ecmascript).
+Did you mean to import MOCK_DATA?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./src/domain/equipment/index.tsx
+    ./src/app/(main)/equipment/page.tsx
+[00:00:06.383] Browser ERROR   ./src/domain/equipment/index.tsx:5:1
+Export EQUIPMENT_DATA doesn't exist in target module
+  3 | import { useEquipment } from "./hooks/use-equipment";
+  4 | import { EquipmentManagementView } from "./ui/equipment-management-view";
+> 5 | import { EQUIPMENT_DATA } from "./data/equipment-mock.ts";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | /**
+  8 |  * EquipmentManagement: 장비 관리 도메인의 메인 엔트리 포인트입니다.
+
+The export EQUIPMENT_DATA was not found in module [project]/src/domain/equipment/data/equipment-mock.ts.ts [app-ssr] (ecmascript).
+Did you mean to import MOCK_DATA?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./src/domain/equipment/index.tsx
+    ./src/app/(main)/equipment/page.tsx
+[00:00:06.383] Browser ERROR   ./src/domain/equipment/index.tsx:5:1
+Export EQUIPMENT_DATA doesn't exist in target module
+  3 | import { useEquipment } from "./hooks/use-equipment";
+  4 | import { EquipmentManagementView } from "./ui/equipment-management-view";
+> 5 | import { EQUIPMENT_DATA } from "./data/equipment-mock.ts";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | /**
+  8 |  * EquipmentManagement: 장비 관리 도메인의 메인 엔트리 포인트입니다.
+
+The export EQUIPMENT_DATA was not found in module [project]/src/domain/equipment/data/equipment-mock.ts.ts [app-client] (ecmascript).
+Did you mean to import MOCK_DATA?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./src/domain/equipment/index.tsx
+    ./src/app/(main)/equipment/page.tsx
+[00:00:06.383] Browser ERROR   ./src/domain/equipment/index.tsx:5:1
+Export EQUIPMENT_DATA doesn't exist in target module
+  3 | import { useEquipment } from "./hooks/use-equipment";
+  4 | import { EquipmentManagementView } from "./ui/equipment-management-view";
+> 5 | import { EQUIPMENT_DATA } from "./data/equipment-mock.ts";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | /**
+  8 |  * EquipmentManagement: 장비 관리 도메인의 메인 엔트리 포인트입니다.
+
+The export EQUIPMENT_DATA was not found in module [project]/src/domain/equipment/data/equipment-mock.ts.ts [app-ssr] (ecmascript).
+Did you mean to import MOCK_DATA?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./src/domain/equipment/index.tsx
+    ./src/app/(main)/equipment/page.tsx
+[00:03:12.336] Browser ERROR   ./src/domain/equipment/index.tsx:5:1
+Export EQUIPMENT_DATA doesn't exist in target module
+  3 | import { useEquipment } from "./hooks/use-equipment";
+  4 | import { EquipmentManagementView } from "./ui/equipment-management-view";
+> 5 | import { EQUIPMENT_DATA } from "./data/equipment-mock.ts";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | /**
+  8 |  * EquipmentManagement: 장비 관리 도메인의 메인 엔트리 포인트입니다.
+
+The export EQUIPMENT_DATA was not found in module [project]/src/domain/equipment/data/equipment-mock.ts.ts [app-client] (ecmascript).
+Did you mean to import MOCK_DATA?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./src/domain/equipment/index.tsx
+    ./src/app/(main)/equipment/page.tsx
+[00:03:12.336] Browser ERROR   ./src/domain/equipment/index.tsx:5:1
+Export EQUIPMENT_DATA doesn't exist in target module
+  3 | import { useEquipment } from "./hooks/use-equipment";
+  4 | import { EquipmentManagementView } from "./ui/equipment-management-view";
+> 5 | import { EQUIPMENT_DATA } from "./data/equipment-mock.ts";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | /**
+  8 |  * EquipmentManagement: 장비 관리 도메인의 메인 엔트리 포인트입니다.
+
+The export EQUIPMENT_DATA was not found in module [project]/src/domain/equipment/data/equipment-mock.ts.ts [app-ssr] (ecmascript).
+Did you mean to import MOCK_DATA?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./src/domain/equipment/index.tsx
+    ./src/app/(main)/equipment/page.tsx
+[00:03:13.333] Browser ERROR   ./src/domain/equipment/index.tsx:5:1
+Export EQUIPMENT_DATA doesn't exist in target module
+  3 | import { useEquipment } from "./hooks/use-equipment";
+  4 | import { EquipmentManagementView } from "./ui/equipment-management-view";
+> 5 | import { EQUIPMENT_DATA } from "./data/equipment-mock.ts";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | /**
+  8 |  * EquipmentManagement: 장비 관리 도메인의 메인 엔트리 포인트입니다.
+
+The export EQUIPMENT_DATA was not found in module [project]/src/domain/equipment/data/equipment-mock.ts [app-client] (ecmascript).
+Did you mean to import MOCK_DATA?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./src/domain/equipment/index.tsx
+    ./src/app/(main)/equipment/page.tsx
+[00:03:13.333] Browser ERROR   ./src/domain/equipment/index.tsx:5:1
+Export EQUIPMENT_DATA doesn't exist in target module
+  3 | import { useEquipment } from "./hooks/use-equipment";
+  4 | import { EquipmentManagementView } from "./ui/equipment-management-view";
+> 5 | import { EQUIPMENT_DATA } from "./data/equipment-mock.ts";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | /**
+  8 |  * EquipmentManagement: 장비 관리 도메인의 메인 엔트리 포인트입니다.
+
+The export EQUIPMENT_DATA was not found in module [project]/src/domain/equipment/data/equipment-mock.ts [app-ssr] (ecmascript).
+Did you mean to import MOCK_DATA?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./src/domain/equipment/index.tsx
+    ./src/app/(main)/equipment/page.tsx
+[00:03:27.455] Browser ERROR   ./src/domain/equipment/index.tsx:5:1
+Export EQUIPMENT_DATA doesn't exist in target module
+  3 | import { useEquipment } from "./hooks/use-equipment";
+  4 | import { EquipmentManagementView } from "./ui/equipment-management-view";
+> 5 | import { EQUIPMENT_DATA } from "./data/equipment-mock";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | /**
+  8 |  * EquipmentManagement: 장비 관리 도메인의 메인 엔트리 포인트입니다.
+
+The export EQUIPMENT_DATA was not found in module [project]/src/domain/equipment/data/equipment-mock.ts [app-client] (ecmascript).
+Did you mean to import MOCK_DATA?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./src/domain/equipment/index.tsx
+    ./src/app/(main)/equipment/page.tsx
+[00:03:27.455] Browser ERROR   ./src/domain/equipment/index.tsx:5:1
+Export EQUIPMENT_DATA doesn't exist in target module
+  3 | import { useEquipment } from "./hooks/use-equipment";
+  4 | import { EquipmentManagementView } from "./ui/equipment-management-view";
+> 5 | import { EQUIPMENT_DATA } from "./data/equipment-mock";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | /**
+  8 |  * EquipmentManagement: 장비 관리 도메인의 메인 엔트리 포인트입니다.
+
+The export EQUIPMENT_DATA was not found in module [project]/src/domain/equipment/data/equipment-mock.ts [app-ssr] (ecmascript).
+Did you mean to import MOCK_DATA?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import trace:
+  Server Component:
+    ./src/domain/equipment/index.tsx
+    ./src/app/(main)/equipment/page.tsx
+[00:04:13.868] Server  LOG     ✓ Compiled in 59ms
+[00:04:14.290] Server  ERROR   ⨯ ReferenceError: EQUIPMENT_DATA is not defined
+[00:04:14.469] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:04:15.326] Browser ERROR   uncaughtError: ReferenceError: EQUIPMENT_DATA is not defined
+[00:05:06.368] Server  WARN    ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[00:05:06.425] Server  LOG     ✓ Compiled in 57ms
+[00:05:06.756] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:05:07.516] Browser ERROR   uncaughtError: Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <Panel data-slot="resizable-..." defaultSize={25} minSize={20} maxSize={35} className="min-w-[300px]" ...>
+      <div data-slot="resizable-..." className="min-w-[300px]" id="_R_t5esnel..." style={{flexBasis:0, ...}} ...>
+        <div className="h-full p-4...">
+          <div className="flex flex-...">
+            <SidePanel searchBar={<div>} actions={<ToolbarButton>}>
+              <aside className="flex flex-...">
+                <div>
+                <div className="flex-1 ove...">
+                  <EquipmentList data={[...]} selectedId={1} onSelect={function bound dispatchSetState}>
+                    <div className="px-1 pb-4">
+                      <p>
+                      <NavListItem icon={{...}} title="Equipment #1" subInfo={[...]} isSelected={true} ...>
+                        <button onClick={function EquipmentList[data.map() > <NavListItem>.onClick]} ...>
+                          <div>
+                          <div className="flex-1 min...">
+                            <div>
+                            <div className="flex items...">
+                              <span className="text-[11px] font-medium text-slate-400 truncate">
++                               MODEL-858
+-                               MODEL-174
+                          ...
+                      ...
+                      ...
+
+[00:05:28.565] Server  LOG     ✓ Compiled in 67ms
+[00:05:29.406] Browser ERROR   ./src/domain/equipment/data/equipment-mock.ts
+Error evaluating Node.js code
+SyntaxError: /home/nova/projects/next.js/wins/apps/web/src/domain/equipment/data/equipment-mock.ts: Unexpected token, expected "," (52:6)
+
+  50 |   const leftPanel = (
+  51 |     <SidePanel
+> 52 |       searchBar={
+     |       ^
+  53 |         <div className="relative">
+  54 |           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+  55 |           <Input
+    [at constructor (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:137105)]
+    [at TypeScriptParserMixin.raise (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:194164)]
+    [at TypeScriptParserMixin.unexpected (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:194550)]
+    [at TypeScriptParserMixin.expect (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:199660)]
+    [at TypeScriptParserMixin.tsParseDelimitedListWorker (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:290309)]
+    [at TypeScriptParserMixin.tsParseDelimitedList (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:290003)]
+    [at TypeScriptParserMixin.tsParseBracketedList (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:290457)]
+    [at TypeScriptParserMixin.tsParseTypeParameters (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:292714)]
+    [at /home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:330733]
+    [at TypeScriptParserMixin.tryParse (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:199742)]
+    [at TypeScriptParserMixin.parseMaybeAssign (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:330704)]
+    [at /home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:350260]
+    [at TypeScriptParserMixin.allowInAnd (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:383968)]
+    [at TypeScriptParserMixin.parseMaybeAssignAllowIn (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:350239)]
+    [at TypeScriptParserMixin.parseParenAndDistinguishExpression (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:369230)]
+    [at TypeScriptParserMixin.parseExprAtom (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:361477)]
+    [at TypeScriptParserMixin.parseExprSubscripts (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:356364)]
+    [at TypeScriptParserMixin.parseUpdate (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:355963)]
+    [at TypeScriptParserMixin.parseMaybeUnary (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:355527)]
+    [at TypeScriptParserMixin.parseMaybeUnary (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:331837)]
+    [at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:352169)]
+    [at TypeScriptParserMixin.parseExprOps (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:352281)]
+    [at TypeScriptParserMixin.parseMaybeConditional (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:351760)]
+    [at TypeScriptParserMixin.parseMaybeAssign (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:350714)]
+    [at TypeScriptParserMixin.parseMaybeAssign (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:330620)]
+    [at /home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:350260]
+    [at TypeScriptParserMixin.allowInAnd (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:383926)]
+    [at TypeScriptParserMixin.parseMaybeAssignAllowIn (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:350239)]
+    [at TypeScriptParserMixin.parseVar (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:402967)]
+    [at TypeScriptParserMixin.parseVarStatement (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:399366)]
+    [at TypeScriptParserMixin.parseVarStatement (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:323322)]
+    [at TypeScriptParserMixin.parseStatementContent (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:391398)]
+    [at TypeScriptParserMixin.parseStatementContent (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:324042)]
+    [at TypeScriptParserMixin.parseStatementLike (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:389494)]
+    [at TypeScriptParserMixin.parseStatementListItem (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:389120)]
+    [at TypeScriptParserMixin.parseBlockOrModuleBlockBody (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:401423)]
+    [at TypeScriptParserMixin.parseBlockBody (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:401223)]
+    [at TypeScriptParserMixin.parseBlock (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:400923)]
+    [at TypeScriptParserMixin.parseFunctionBody (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:378053)]
+    [at TypeScriptParserMixin.parseFunctionBodyAndFinish (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:377675)]
+    [at TypeScriptParserMixin.parseFunctionBodyAndFinish (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:318173)]
+    [at /home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:404308]
+    [at TypeScriptParserMixin.withSmartMixTopicForbiddingContext (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:383677)]
+    [at TypeScriptParserMixin.parseFunction (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:404262)]
+    [at TypeScriptParserMixin.parseFunctionStatement (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:397088)]
+    [at TypeScriptParserMixin.parseStatementContent (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:390089)]
+    [at TypeScriptParserMixin.parseStatementContent (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:324042)]
+    [at TypeScriptParserMixin.parseStatementLike (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:389494)]
+    [at TypeScriptParserMixin.parseStatementListItem (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:389120)]
+    [at TypeScriptParserMixin.parseExportDeclaration (/home/nova/projects/next.js/wins/apps/web/node_modules/next/dist/compiled/babel/bundle.js:191:415606)]
+
+Import traces:
+  Client Component Browser:
+    ./src/domain/equipment/data/equipment-mock.ts [Client Component Browser]
+    ./src/domain/equipment/index.tsx [Client Component Browser]
+    ./src/domain/equipment/index.tsx [Server Component]
+    ./src/app/(main)/equipment/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/domain/equipment/data/equipment-mock.ts [Client Component SSR]
+    ./src/domain/equipment/index.tsx [Client Component SSR]
+    ./src/domain/equipment/index.tsx [Server Component]
+    ./src/app/(main)/equipment/page.tsx [Server Component]
+[00:05:29.406] Browser ERROR   ./src/domain/equipment/data/equipment-mock.ts:52:7
+Parsing ecmascript source code failed
+  50 |   const leftPanel = (
+  51 |     <SidePanel
+> 52 |       searchBar={
+     |       ^^^^^^^^^
+  53 |         <div className="relative">
+  54 |           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+  55 |           <Input
+
+Expected '>', got 'searchBar'
+
+Import traces:
+  Client Component Browser:
+    ./src/domain/equipment/data/equipment-mock.ts [Client Component Browser]
+    ./src/domain/equipment/index.tsx [Client Component Browser]
+    ./src/domain/equipment/index.tsx [Server Component]
+    ./src/app/(main)/equipment/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/domain/equipment/data/equipment-mock.ts [Client Component SSR]
+    ./src/domain/equipment/index.tsx [Client Component SSR]
+    ./src/domain/equipment/index.tsx [Server Component]
+    ./src/app/(main)/equipment/page.tsx [Server Component]
+[00:06:23.041] Server  LOG     ✓ Compiled in 240ms
+[00:07:58.113] Server  LOG     ✓ Compiled in 95ms
+[00:17:59.424] Server  LOG     ✓ Compiled in 278ms
+[00:19:41.445] Server  LOG     ✓ Compiled in 293ms
+[00:19:44.682] Server  LOG     ✓ Compiled in 44ms
+[00:19:45.336] Browser ERROR   ./src/domain/equipment/ui/equipment-management-view.tsx:164:10
+Parsing ecmascript source code failed
+  162 |         )}
+  163 |         {activeTab === "extended" && (
+> 164 |         )}
+      |          ^
+  165 |         {activeTab === "specs" && (
+  166 |           <Specs data={selectedItem} isEditing={isEditing} />
+  167 |         )}
+
+Expected '</', got '}'
+
+Import traces:
+  Client Component Browser:
+    ./src/domain/equipment/ui/equipment-management-view.tsx [Client Component Browser]
+    ./src/domain/equipment/index.tsx [Client Component Browser]
+    ./src/domain/equipment/index.tsx [Server Component]
+    ./src/app/(main)/equipment/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/domain/equipment/ui/equipment-management-view.tsx [Client Component SSR]
+    ./src/domain/equipment/index.tsx [Client Component SSR]
+    ./src/domain/equipment/index.tsx [Server Component]
+    ./src/app/(main)/equipment/page.tsx [Server Component]
+[00:19:57.021] Server  LOG     ✓ Compiled in 42ms
+[00:19:57.504] Browser ERROR   ./src/domain/equipment/ui/equipment-management-view.tsx:172:18
+Parsing ecmascript source code failed
+  170 |         {activeTab === "specs" && (
+  171 |           <ExtendedInfo key={selectedItem.id}data={selectedItem} isEditing={isEditing} />
+> 172 |           <Specs data={selectedItem} isEditing={isEditing} />
+      |                  ^^^^
+  173 |         )}
+  174 |         {activeTab === "parts" && <Parts data={selectedItem} />}
+  175 |         {activeTab === "sub-equipment" && (
+
+Expected '</', got 'data'
+
+Import traces:
+  Client Component Browser:
+    ./src/domain/equipment/ui/equipment-management-view.tsx [Client Component Browser]
+    ./src/domain/equipment/index.tsx [Client Component Browser]
+    ./src/domain/equipment/index.tsx [Server Component]
+    ./src/app/(main)/equipment/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/domain/equipment/ui/equipment-management-view.tsx [Client Component SSR]
+    ./src/domain/equipment/index.tsx [Client Component SSR]
+    ./src/domain/equipment/index.tsx [Server Component]
+    ./src/app/(main)/equipment/page.tsx [Server Component]
+[00:22:47.657] Server  LOG     ✓ Compiled in 248ms
+[00:22:51.304] Server  LOG     ✓ Compiled in 162ms
+[00:23:01.665] Server  LOG     ✓ Compiled in 158ms
+[00:23:10.163] Server  LOG     ✓ Compiled in 126ms
+[00:25:38.430] Server  LOG     ✓ Compiled in 126ms
+[00:26:04.422] Server  LOG     ✓ Compiled in 65ms
+[00:26:45.271] Server  LOG     ✓ Compiled in 60ms
+[00:27:16.074] Server  LOG     ✓ Compiled in 126ms
+[00:27:25.763] Server  LOG     ✓ Compiled in 70ms
+[00:28:07.516] Server  LOG     ✓ Compiled in 92ms
+[00:28:16.957] Server  LOG     ✓ Compiled in 80ms
+[00:28:37.918] Server  LOG     ✓ Compiled in 116ms
+[00:28:48.194] Server  LOG     ✓ Compiled in 186ms
+[00:28:53.745] Server  LOG     ✓ Compiled in 89ms
+[00:29:33.237] Server  LOG     ✓ Compiled in 75ms
+[00:30:04.069] Server  LOG     ✓ Compiled in 62ms
+[00:30:18.626] Server  LOG     ✓ Compiled in 46ms
+[00:30:31.736] Server  LOG     ✓ Compiled in 65ms
+[00:31:27.396] Server  LOG     ✓ Compiled in 50ms
+[00:31:46.100] Server  LOG     ✓ Compiled in 142ms
+[00:32:41.113] Server  LOG     ✓ Compiled in 138ms
+[00:36:00.821] Server  LOG     ✓ Compiled in 109ms
+[00:36:10.965] Server  LOG     ✓ Compiled in 68ms
+[00:36:43.573] Server  LOG     ✓ Compiled in 70ms
+[00:42:29.181] Server  LOG     ✓ Compiled in 117ms
+[00:42:35.025] Server  LOG     ✓ Compiled in 61ms
+[00:42:47.978] Server  LOG     ✓ Compiled in 57ms
+[00:43:49.166] Server  LOG     ✓ Compiled in 62ms
+[00:45:41.848] Server  LOG     ✓ Compiled in 93ms
+[00:46:34.775] Server  LOG     ✓ Compiled in 79ms
+[00:46:49.655] Server  LOG     ✓ Compiled in 93ms
+[00:47:43.343] Server  LOG     ✓ Compiled in 92ms
