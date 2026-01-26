@@ -12,7 +12,6 @@ export const SECTORS: Sector[] = [
 
 /**
  * ✨ 2. 센터(Center) 데이터
- * 지역 거점 조직으로, 부문 산하에 존재하며 시설(Facility)들을 관리합니다.
  */
 export const CENTERS: Center[] = [
   {
@@ -47,10 +46,8 @@ export const CENTERS: Center[] = [
 
 /**
  * ✨ 3. 부서(Department) 데이터
- * 부문 직영(본사형)과 센터 산하(현장형) 조직이 공존합니다.
  */
 export const DEPARTMENTS: Department[] = [
-  // 🏢 본사 직영 부서 (경영지원/안전보건부문 직속)
   {
     id: 1,
     name: "인사기획팀",
@@ -58,6 +55,7 @@ export const DEPARTMENTS: Department[] = [
     sector_id: 3,
     center_id: null,
     facility_ids: [],
+    status: "active",
   },
   {
     id: 2,
@@ -66,6 +64,7 @@ export const DEPARTMENTS: Department[] = [
     sector_id: 3,
     center_id: null,
     facility_ids: [],
+    status: "active",
   },
   {
     id: 3,
@@ -74,6 +73,7 @@ export const DEPARTMENTS: Department[] = [
     sector_id: 3,
     center_id: null,
     facility_ids: [],
+    status: "active",
   },
   {
     id: 4,
@@ -82,9 +82,8 @@ export const DEPARTMENTS: Department[] = [
     sector_id: 4,
     center_id: null,
     facility_ids: [],
+    status: "active",
   },
-
-  // 📍 센터 산하 부서 (현장 실무 조직)
   {
     id: 10,
     name: "광주 운영1팀",
@@ -92,6 +91,7 @@ export const DEPARTMENTS: Department[] = [
     sector_id: 1,
     center_id: 1,
     facility_ids: [1, 2],
+    status: "active",
   },
   {
     id: 11,
@@ -100,6 +100,7 @@ export const DEPARTMENTS: Department[] = [
     sector_id: 1,
     center_id: 1,
     facility_ids: [3, 4],
+    status: "active",
   },
   {
     id: 12,
@@ -108,6 +109,7 @@ export const DEPARTMENTS: Department[] = [
     sector_id: 1,
     center_id: 1,
     facility_ids: [1, 2, 3, 4, 5],
+    status: "active",
   },
   {
     id: 20,
@@ -116,6 +118,7 @@ export const DEPARTMENTS: Department[] = [
     sector_id: 1,
     center_id: 2,
     facility_ids: [10, 11],
+    status: "active",
   },
   {
     id: 21,
@@ -124,6 +127,7 @@ export const DEPARTMENTS: Department[] = [
     sector_id: 1,
     center_id: 2,
     facility_ids: [12],
+    status: "active",
   },
   {
     id: 30,
@@ -132,6 +136,7 @@ export const DEPARTMENTS: Department[] = [
     sector_id: 2,
     center_id: 3,
     facility_ids: [20, 21],
+    status: "active",
   },
   {
     id: 40,
@@ -140,12 +145,12 @@ export const DEPARTMENTS: Department[] = [
     sector_id: 2,
     center_id: 4,
     facility_ids: [30, 31],
+    status: "active",
   },
 ];
 
 /**
  * ✨ 4. 사용자(User) 데이터 (50명)
- * 각 조직별로 골고루 배정되었습니다.
  */
 export const USERS: User[] = [
   // --- 본사 직영 부서 (1~10) ---
@@ -160,6 +165,7 @@ export const USERS: User[] = [
     code: "HQ-001",
     profile_image_id: null,
     is_active: true,
+    status: "active",
   },
   {
     id: 2,
@@ -172,6 +178,7 @@ export const USERS: User[] = [
     code: "HQ-002",
     profile_image_id: null,
     is_active: true,
+    status: "active",
   },
   {
     id: 3,
@@ -184,6 +191,7 @@ export const USERS: User[] = [
     code: "HQ-010",
     profile_image_id: null,
     is_active: true,
+    status: "active",
   },
   {
     id: 4,
@@ -196,6 +204,7 @@ export const USERS: User[] = [
     code: "HQ-021",
     profile_image_id: null,
     is_active: true,
+    status: "active",
   },
   {
     id: 5,
@@ -208,7 +217,9 @@ export const USERS: User[] = [
     code: "HQ-050",
     profile_image_id: null,
     is_active: true,
+    status: "active",
   },
+  // ✨ [수정 1] as const 추가
   ...Array.from({ length: 5 }).map((_, i) => ({
     id: 6 + i,
     login_id: `hq_user_${i + 1}`,
@@ -220,6 +231,7 @@ export const USERS: User[] = [
     code: `HQ-10${i}`,
     profile_image_id: null,
     is_active: true,
+    status: "active" as const, // 여기!
   })),
 
   // --- 광주 통합 센터 (11~30) ---
@@ -234,19 +246,25 @@ export const USERS: User[] = [
     code: "GJ-001",
     profile_image_id: null,
     is_active: true,
+    status: "active",
   },
-  ...Array.from({ length: 19 }).map((_, i) => ({
-    id: 12 + i,
-    login_id: `gj_staff_${i + 1}`,
-    name: `광주요원${i + 1}`,
-    email: `gj${i + 1}@wins.com`,
-    phone: `010-5000-50${i < 10 ? "0" + i : i}`,
-    department_id: 10 + (i % 3), // 10, 11, 12 부서 분배
-    role: UserRole.USER,
-    code: `GJ-1${i < 10 ? "0" + i : i}`,
-    profile_image_id: null,
-    is_active: Math.random() > 0.1, // 10% 확률로 비활성
-  })),
+  // ✨ [수정 2] 동적 할당 부분 타입 명시
+  ...Array.from({ length: 19 }).map((_, i) => {
+    const isActive = Math.random() > 0.1;
+    return {
+      id: 12 + i,
+      login_id: `gj_staff_${i + 1}`,
+      name: `광주요원${i + 1}`,
+      email: `gj${i + 1}@wins.com`,
+      phone: `010-5000-50${i < 10 ? "0" + i : i}`,
+      department_id: 10 + (i % 3),
+      role: UserRole.USER,
+      code: `GJ-1${i < 10 ? "0" + i : i}`,
+      profile_image_id: null,
+      is_active: isActive,
+      status: (isActive ? "active" : "inactive") as "active" | "inactive", // 여기!
+    };
+  }),
 
   // --- 용인/인천/부산 센터 (31~50) ---
   {
@@ -260,17 +278,20 @@ export const USERS: User[] = [
     code: "YI-001",
     profile_image_id: null,
     is_active: true,
+    status: "active",
   },
+  // ✨ [수정 3] as const 추가
   ...Array.from({ length: 19 }).map((_, i) => ({
     id: 32 + i,
     login_id: `field_user_${i + 1}`,
     name: `현장담당${i + 1}`,
     email: `field${i + 1}@wins.com`,
     phone: `010-7000-70${i < 10 ? "0" + i : i}`,
-    department_id: [20, 21, 30, 40][i % 4], // 여러 센터 부서 분배
+    department_id: [20, 21, 30, 40][i % 4],
     role: UserRole.USER,
     code: `FLD-2${i < 10 ? "0" + i : i}`,
     profile_image_id: null,
     is_active: true,
+    status: "active" as const, // 여기!
   })),
 ];

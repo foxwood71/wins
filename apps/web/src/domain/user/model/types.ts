@@ -35,6 +35,7 @@ export interface Department {
   sector_id: number | null; // 본사 직업 부서일 경우 존재
   center_id: number | null; // 센터 산하 부서일 경우 존재
   facility_ids: number[]; // ✨ 부서 실무 관할 시설 ID 목록
+  status: "active" | "inactive"; // 부서 활성 상태
 }
 
 // 5. 사용자 (User)
@@ -50,5 +51,9 @@ export interface User {
   code: string | null; // 사번 등
   profile_image_id: number | null;
   is_active: boolean; // 계정 활성 상태
+  status: "active" | "inactive"; // 계정 활성 상태
   last_login_at?: string;
 }
+
+// ✨ [추가] 공통 유니온 타입 정의
+export type OrgData = Sector | Center | Department | User;

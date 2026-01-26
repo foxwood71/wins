@@ -10,29 +10,28 @@ import {
 import { NavListItem } from "@/shared/components/navigation/nav-list-item";
 import { cn } from "@/shared/lib/utils";
 
-// ✨ [핵심 1] T의 기본값 제거. T는 반드시 객체(object)여야 한다고 제약.
-// 이제 TreeNode를 쓸 때는 반드시 타입을 명시하거나 추론되게 해야 합니다.
 export interface TreeNode<T> {
   id: string | number;
   label: string;
   icon?: LucideIcon;
   subInfo?: string[];
-  children?: TreeNode<T>[]; // 자식도 부모와 같은 T 타입 데이터를 가짐
-  data?: T; // 원본 데이터 (Generic)
+  children?: TreeNode<T>[];
+  data?: T;
 }
 
 interface NavTreeProps<T> {
   title?: string;
-  nodes: TreeNode<T>[]; // 여기서 T가 결정됨
+  nodes: TreeNode<T>[];
   openItems: Record<string, boolean>;
   onToggle: (id: string) => void;
   selectedId: string | number;
-  onSelect: (node: TreeNode<T>) => void; // 선택 시 반환되는 노드도 T 타입을 유지
+  onSelect: (node: TreeNode<T>) => void;
   className?: string;
+
+  // ✨ [추가] 커스텀 디자인을 위한 렌더러 함수 prop
+  renderItem?: (node: TreeNode<T>) => React.ReactNode;
 }
 
-// ✨ [핵심 2] 컴포넌트 선언 시 제네릭 <T>만 선언
-// extends object: T는 원시타입(숫자, 문자)이 아닌 객체여야 함을 명시 (안전장치)
 export function NavTree<T extends object>({
   title = "NavTree",
   nodes,
@@ -41,8 +40,8 @@ export function NavTree<T extends object>({
   selectedId,
   onSelect,
   className,
+  renderItem, // ✨ 구조 분해 할당
 }: NavTreeProps<T>) {
-  // 재귀 렌더링 함수
   const renderNode = (node: TreeNode<T>, depth: number = 0) => {
     const hasChildren = node.children && node.children.length > 0;
     const isOpen = !!openItems[String(node.id)];
@@ -54,6 +53,7 @@ export function NavTree<T extends object>({
     return (
       <div key={node.id} className={cn(indentClass, depth === 0 && "mb-1")}>
         {hasChildren ? (
+          // 1. 그룹(폴더)인 경우: 기존 로직 유지
           <Collapsible
             open={isOpen}
             onOpenChange={() => onToggle(String(node.id))}
@@ -86,12 +86,16 @@ export function NavTree<T extends object>({
               {node.children!.map((child) => renderNode(child, depth + 1))}
             </CollapsibleContent>
           </Collapsible>
+        ) : // 2. 아이템(부서)인 경우: ✨ renderItem이 있으면 그것을 사용!
+        renderItem ? (
+          <div onClick={() => onSelect(node)}>{renderItem(node)}</div>
         ) : (
+          // 없으면 기존 NavListItem 사용
           <NavListItem
             icon={IconComponent!}
             title={node.label}
             subInfo={node.subInfo || []}
-            isSelected={selectedId === node.id}
+            isSelected={String(selectedId) === String(node.id)}
             onClick={() => onSelect(node)}
             className="h-10"
           />
@@ -102,9 +106,12 @@ export function NavTree<T extends object>({
 
   return (
     <div className={cn("px-1 pb-4", className)}>
-      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 px-2">
-        {title}
-      </p>
+      {/* title prop이 있을 때만 헤더 렌더링 */}
+      {title && (
+        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 px-2">
+          {title}
+        </p>
+      )}
       {nodes.map((node) => renderNode(node))}
     </div>
   );

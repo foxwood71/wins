@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
-  Search,
   Plus,
   Trash2,
   Printer,
@@ -15,12 +14,16 @@ import {
   Landmark,
   UserRound,
   MapPin,
+  Briefcase,
 } from "lucide-react";
 
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Badge } from "@/shared/components/ui/badge";
+
+// ✨ [Dynamic Filter]
+import { FilterConfig, FilterValues } from "@/shared/components/dynamic-filter";
 
 import {
   AppContent,
@@ -34,38 +37,77 @@ import {
   FormSectionHeader,
 } from "@/shared/components/layout/app-content";
 
-// ✨ [Hooks & Common]
+// [Navigation]
 import { NavTree, TreeNode } from "@/shared/components/navigation/nav-tree";
-import { useOrgTreeNodes, OrgData } from "../hooks/use-org-tree-nodes";
+import { useUserTreeNodes } from "../hooks/use-org-tree-nodes";
 
 // Data & Types
-import { User, UserRole } from "../model/types";
+import { User, UserRole, OrgData } from "../model/types";
 import { USERS, DEPARTMENTS, CENTERS, SECTORS } from "../data/user-mock";
 
 export function UserManagementView() {
   // --- [State] ---
   const [selectedId, setSelectedId] = useState<number>(USERS[0].id);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilters, setActiveFilters] = useState<FilterValues>({}); // 필터 상태
+
   const [showPassword, setShowPassword] = useState(false);
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
 
   const [isEditing, setIsEditing] = useState(false);
   const [isAllExpanded, setIsAllExpanded] = useState(false);
 
+  // Form States
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [selectedSectorId, setSelectedSectorId] = useState<number>(0);
   const [selectedCenterId, setSelectedCenterId] = useState<number | null>(null);
   const [selectedDeptId, setSelectedDeptId] = useState<number>(0);
 
+  // --- [Config] Filters ---
+  const USER_FILTERS: FilterConfig[] = useMemo(
+    () => [
+      {
+        key: "sector_id",
+        label: "소속 부문",
+        type: "select",
+        options: SECTORS.map((s) => ({ label: s.name, value: String(s.id) })),
+      },
+      {
+        key: "center_id",
+        label: "소속 센터",
+        type: "select",
+        options: CENTERS.map((c) => ({ label: c.name, value: String(c.id) })),
+      },
+      {
+        key: "role",
+        label: "사용자 권한",
+        type: "select",
+        options: [
+          { label: "최고 관리자", value: String(UserRole.SUPER_ADMIN) },
+          { label: "중간 관리자", value: String(UserRole.ADMIN) },
+          { label: "일반 사용자", value: String(UserRole.USER) },
+        ],
+      },
+      {
+        key: "status",
+        label: "계정 상태",
+        type: "select",
+        options: [
+          { label: "정상 (Active)", value: "active" },
+          { label: "잠김 (Locked)", value: "locked" },
+          { label: "휴면 (Inactive)", value: "inactive" },
+        ],
+      },
+    ],
+    [],
+  );
+
   // --- [Logic] ---
   const selectedUser = USERS.find((u: User) => u.id === selectedId);
 
-  // ✨ [Hook] 트리 데이터 생성 (사용자 포함)
-  const treeNodes = useOrgTreeNodes({
-    searchTerm,
-    includeUsers: true,
-  });
+  // 트리 데이터 Hook
+  const treeNodes = useUserTreeNodes(searchTerm);
 
   // --- [Handlers] ---
   const toggleItem = (key: string) => {
@@ -93,6 +135,7 @@ export function UserManagementView() {
       const user = node.data as User;
       setSelectedId(user.id);
 
+      // 선택된 사용자의 소속 정보로 폼 상태 업데이트
       const dept = DEPARTMENTS.find((d) => d.id === user.department_id);
       if (dept) {
         setSelectedSectorId(dept.sector_id || 0);
@@ -104,6 +147,11 @@ export function UserManagementView() {
       setPassword("");
       setPasswordConfirm("");
     }
+  };
+
+  const handleFilterChange = (newFilters: FilterValues) => {
+    setActiveFilters(newFilters);
+    console.log("User Filters:", newFilters);
   };
 
   const handleSave = () => {
@@ -132,36 +180,111 @@ export function UserManagementView() {
     };
   };
 
-  // --- [UI] ---
+  // ✨ [Render Item] 사용자 카드 디자인 적용
+  const renderNodeContent = (node: TreeNode<OrgData>) => {
+    const isSelected = String(node.data?.id) === String(selectedId); // ID 비교 수정
+
+    // 데이터 타입 확인
+    const isUser = node.data && "login_id" in node.data;
+
+    // 1. 사용자(User)인 경우 -> 카드 스타일 적용
+    if (isUser) {
+      const user = node.data as User;
+      const isActive = user.status === "active";
+
+      return (
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            handleSelectNode(node);
+          }}
+          className={cn(
+            // 높이 80% 축소 (p-2, mb-1), 테두리 투명 처리
+            "flex items-center p-2 mb-1 rounded-xl border transition-all cursor-pointer group relative select-none",
+            isSelected
+              ? "bg-white border-indigo-500 ring-1 ring-indigo-500/20 shadow-md z-10"
+              : "bg-white border-transparent hover:bg-slate-50 hover:border-slate-200",
+          )}
+        >
+          {/* 아이콘 박스 (배경 없음, 같은 크기) */}
+          <div
+            className={cn(
+              "h-8 w-8 flex items-center justify-center shrink-0 mr-2.5 transition-colors",
+              isSelected
+                ? "text-indigo-600"
+                : "text-slate-400 group-hover:text-indigo-500",
+            )}
+          >
+            <UserRound className="h-4 w-4" />
+          </div>
+
+          {/* 텍스트 정보 */}
+          <div className="flex-1 min-w-0 flex flex-col justify-center">
+            <span
+              className={cn(
+                "text-[13px] font-bold truncate leading-tight",
+                isSelected ? "text-slate-900" : "text-slate-700",
+              )}
+            >
+              {user.name}
+            </span>
+            <span className="text-[11px] font-bold text-slate-400 mt-[1px] truncate font-mono">
+              {user.login_id}
+            </span>
+          </div>
+
+          {/* 상태 아이콘 */}
+          <div className="ml-2.5 shrink-0 flex items-center">
+            {isActive ? (
+              <CheckCircle2 className="h-4.5 w-4.5 text-emerald-500" />
+            ) : (
+              <div
+                className="h-4.5 w-4.5 rounded-full border-2 border-slate-200 bg-slate-50 flex items-center justify-center"
+                title="비활성"
+              >
+                <div className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // 2. 부서(Dept)이지만 자식이 없어 Leaf로 렌더링 되는 경우 (빈 부서)
+    // 간단한 폴더 형태로 표시
+    return (
+      <div className="flex items-center py-1.5 px-2 text-slate-500 gap-2">
+        <Briefcase className="h-4 w-4" />
+        <span className="text-[13px] font-medium">{node.label}</span>
+      </div>
+    );
+  };
+
+  // --- [UI Layout] ---
   const leftPanel = (
     <SidePanel
-      searchBar={
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input
-            placeholder="이름, ID 검색..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 h-9 bg-slate-50/50 border-slate-200 rounded-lg shadow-none"
-          />
-        </div>
-      }
+      title="사용자 현황"
+      // ✨ Search & Filter Integration
+      onSearch={setSearchTerm}
+      filterConfigs={USER_FILTERS}
+      onFilterChange={handleFilterChange}
       isExpanded={isAllExpanded}
       onToggleExpand={handleToggleTree}
       actions={
         <ToolbarButton
           icon={Plus}
-          className="bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg"
+          className="bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg h-8 w-8 ml-1"
         />
       }
     >
       <NavTree
-        title="사용자 현황"
+        title="" // 내부 타이틀 제거
         nodes={treeNodes}
         openItems={openItems}
         onToggle={toggleItem}
         selectedId={selectedId}
         onSelect={handleSelectNode}
+        renderItem={renderNodeContent} // ✨ 커스텀 렌더러 전달
       />
     </SidePanel>
   );
