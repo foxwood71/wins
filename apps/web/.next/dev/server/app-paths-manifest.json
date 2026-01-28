@@ -1,7 +1,0 @@
-{
-  "/(main)/equipment/page": "app/(main)/equipment/page.js",
-  "/(main)/user/department/page": "app/(main)/user/department/page.js",
-  "/(main)/user/user/page": "app/(main)/user/user/page.js",
-  "/_not-found/page": "app/_not-found/page.js",
-  "/page": "app/page.js"
-}
