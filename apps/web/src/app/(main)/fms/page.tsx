@@ -1,4 +1,4 @@
-import EquipmentManagementView from "@/domain/equipment";
+import EquipmentManagementView from "@/domain/fms";
 
 export default function EquipmentPage() {
   return (

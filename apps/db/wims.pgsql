@@ -52,7 +52,7 @@ DROP FUNCTION IF EXISTS lims.mark_labels_printed() CASCADE;
 --
 CREATE SCHEMA app; COMMENT ON SCHEMA app IS '애플리케이션 공용 데이터 (이미지, 문서 등)';
 CREATE SCHEMA usr; COMMENT ON SCHEMA usr IS '사용자 및 부서 관리';
-CREATE SCHEMA loc; COMMENT ON SCHEMA loc IS '위치 정보 (하수처리장, 설치/보관 장소 등)';
+CREATE SCHEMA loc; COMMENT ON SCHEMA loc IS '위치 정보 (시설, 설치/보관 장소 등)';
 CREATE SCHEMA ven; COMMENT ON SCHEMA ven IS '업체 관리';
 CREATE SCHEMA fms; COMMENT ON SCHEMA fms IS '시설 관리 시스템';
 CREATE SCHEMA inv; COMMENT ON SCHEMA inv IS '자재 및 재고 관리';
@@ -174,8 +174,8 @@ COMMENT ON COLUMN app.entity_images.updated_at IS '레코드 마지막 업데이
 -- ==========================================
 CREATE TABLE usr.sectors (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL UNIQUE,
     code VARCHAR(20) UNIQUE,
+    name VARCHAR(100) NOT NULL UNIQUE,
     sort_order INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -192,8 +192,8 @@ COMMENT ON COLUMN usr.sectors.sort_order IS 'UI 출력 시 정렬 순서';
 CREATE TABLE usr.centers (
     id SERIAL PRIMARY KEY,
     sector_id INTEGER REFERENCES usr.sectors(id) ON UPDATE CASCADE ON DELETE SET NULL,
-    name VARCHAR(100) NOT NULL UNIQUE,
     code VARCHAR(20) UNIQUE,
+    name VARCHAR(100) NOT NULL UNIQUE,
     facility_ids JSONB DEFAULT '[]'::jsonb,
     description TEXT,
     sort_order INTEGER,
@@ -205,7 +205,7 @@ COMMENT ON COLUMN usr.centers.id IS '센터 고유 ID';
 COMMENT ON COLUMN usr.centers.sector_id IS '소속 부문 ID (FK)';
 COMMENT ON COLUMN usr.centers.name IS '센터 명칭';
 COMMENT ON COLUMN usr.centers.code IS '센터 코드 (예: CTR01)';
-COMMENT ON COLUMN usr.departments.facility_ids IS '센터에서 실무적으로 관할하는 시설(loc.wastewater_plants) ID 목록. JSONB 배열 형식(예: [1, 10, 12])으로 저장하여 권한 및 데이터 필터링에 활용함';
+COMMENT ON COLUMN usr.departments.facility_ids IS '센터에서 실무적으로 관할하는 시설(loc.facilities) ID 목록. JSONB 배열 형식(예: [1, 10, 12])으로 저장하여 권한 및 데이터 필터링에 활용함';
 COMMENT ON COLUMN usr.centers.description IS '센터 상세 설명 및 관할 구역 정보';
 
 -- ==========================================
@@ -229,37 +229,41 @@ COMMENT ON COLUMN usr.departments.id IS '부서 고유 ID';
 COMMENT ON COLUMN usr.departments.sector_id IS '소속 부문 ID (본사 직속 부서일 경우 필수 입력)';
 COMMENT ON COLUMN usr.departments.center_id IS '소속 센터 ID (현장 센터 산하 부서일 경우 필수 입력)';
 COMMENT ON COLUMN usr.departments.name IS '부서 명칭 (예: 통합 운영팀, 인사팀)';
-COMMENT ON COLUMN usr.departments.facility_ids IS '부서에서 실무적으로 관할하는 시설(loc.wastewater_plants) ID 목록. JSONB 배열 형식(예: [1, 10, 12])으로 저장하여 권한 및 데이터 필터링에 활용함';
+COMMENT ON COLUMN usr.departments.facility_ids IS '부서에서 실무적으로 관할하는 시설(loc.facilities) ID 목록. JSONB 배열 형식(예: [1, 10, 12])으로 저장하여 권한 및 데이터 필터링에 활용함';
 
 -- ==========================================
 -- 4. usr.users: 시스템 사용자 정보 테이블
 -- ==========================================
 CREATE TABLE usr.users (
     id SERIAL PRIMARY KEY,
+    department_id INTEGER REFERENCES usr.departments(id) ON UPDATE CASCADE ON DELETE SET NULL,
+    profile_image_id INTEGER REFERENCES app.images(id) ON UPDATE CASCADE ON DELETE SET NULL, -- 프로필 이미지 연결
     login_id VARCHAR(50) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    code VARCHAR(16) UNIQUE,                  -- 사번 또는 고유 코드
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE,
     phone VARCHAR(50),
-    department_id INTEGER REFERENCES usr.departments(id) ON UPDATE CASCADE ON DELETE SET NULL,
+ 
     role INTEGER DEFAULT 100 NOT NULL,        -- 1: 최고관리자, 10: 관리자, 100: 일반사용자
-    code VARCHAR(16) UNIQUE,                  -- 사번 또는 고유 코드
-    profile_image_id INTEGER REFERENCES app.images(id) ON UPDATE CASCADE ON DELETE SET NULL, -- 프로필 이미지 연결
+
     is_active BOOLEAN DEFAULT TRUE,
     last_login_at TIMESTAMP WITH TIME ZONE,   -- 마지막 로그인 일시 (계정 관리용)
+
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 COMMENT ON TABLE usr.users IS '시스템 사용자 정보를 관리하는 테이블';
 COMMENT ON COLUMN usr.users.id IS '사용자 고유 ID';
+COMMENT ON COLUMN usr.users.profile_image_id IS '사용자 프로필 이미지 ID (app.images 참조)';
+COMMENT ON COLUMN usr.users.department_id IS '소속 부서 ID (FK) - 이를 통해 센터/부문 역추적 가능';
 COMMENT ON COLUMN usr.users.login_id IS '로그인용 아이디 (UI: loginId)';
 COMMENT ON COLUMN usr.users.password_hash IS '암호화된 비밀번호 해시';
-COMMENT ON COLUMN usr.users.name IS '사용자 실명 (UI: userName)';
-COMMENT ON COLUMN usr.users.email IS '이메일 주소';
-COMMENT ON COLUMN usr.users.phone IS '연락처 (센터/현장 비상 연락용)';
-COMMENT ON COLUMN usr.users.department_id IS '소속 부서 ID (FK) - 이를 통해 센터/부문 역추적 가능';
+COMMENT ON COLUMN usr.users.code IS '사용자 사번';
+COMMENT ON COLUMN usr.users.name IS '사용자 이름';
+COMMENT ON COLUMN usr.users.email IS '사용자 이메일 주소';
+COMMENT ON COLUMN usr.users.phone IS '사용자 연락처 (센터/현장 비상 연락용)';
 COMMENT ON COLUMN usr.users.role IS '권한 레벨 (1: SuperAdmin, 10: Admin, 100: User)';
-COMMENT ON COLUMN usr.users.profile_image_id IS '사용자 프로필 이미지 ID (app.images 참조)';
 COMMENT ON COLUMN usr.users.is_active IS '계정 활성 여부 (정상/중지)';
 COMMENT ON COLUMN usr.users.last_login_at IS '최근 시스템 접속 일시';
 
@@ -277,89 +281,137 @@ CHECK (sector_id IS NOT NULL OR center_id IS NOT NULL);
 --
 -- loc 스키마 테이블 (위치 정보)
 --
-CREATE TABLE loc.wastewater_plants ( -- 하수처리장 정보 (lims.sites 통합)
+CREATE TABLE loc.facilities ( 
     id SERIAL PRIMARY KEY,
-    code VARCHAR(5) UNIQUE,
-    name VARCHAR(100) NOT NULL UNIQUE, -- 하수처리장 현장 호칭 명칭
+    code VARCHAR(20) UNIQUE,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    category VARCHAR(20) DEFAULT 'STP',
+
     address VARCHAR(255),
     contact_person VARCHAR(100),
     contact_phone VARCHAR(50),
+
     latitude NUMERIC(10, 7),
     longitude NUMERIC(10, 7),
+
     description TEXT,
-    is_stp BOOLEAN DEFAULT TRUE, -- 하수처리장 여부 (true: 하수, false: 폐수 등)
     sort_order INTEGER,
+
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-COMMENT ON TABLE loc.wastewater_plants IS '하수처리장 및 현장 시설 정보를 관리하는 테이블';
-COMMENT ON COLUMN loc.wastewater_plants.id IS '하수처리장 고유 ID';
-COMMENT ON COLUMN loc.wastewater_plants.code IS '하수처리장 코드';
-COMMENT ON COLUMN loc.wastewater_plants.name IS '하수처리장 현장 호칭 명칭';
-COMMENT ON COLUMN loc.wastewater_plants.address IS '주소';
-COMMENT ON COLUMN loc.wastewater_plants.contact_person IS '담당자';
-COMMENT ON COLUMN loc.wastewater_plants.contact_phone IS '연락처';
-COMMENT ON COLUMN loc.wastewater_plants.latitude IS '위도';
-COMMENT ON COLUMN loc.wastewater_plants.longitude IS '경도';
-COMMENT ON COLUMN loc.wastewater_plants.description IS '설명';
-COMMENT ON COLUMN loc.wastewater_plants.is_stp IS '하수처리장 여부 (true: 하수, false: 폐수 등)';
-COMMENT ON COLUMN loc.wastewater_plants.sort_order IS '정렬 순서';
-COMMENT ON COLUMN loc.wastewater_plants.created_at IS '레코드 생성 일시';
-COMMENT ON COLUMN loc.wastewater_plants.updated_at IS '레코드 마지막 업데이트 일시';
+COMMENT ON TABLE loc.facilities IS '시설 및 현장 시설 정보를 관리하는 테이블';
+COMMENT ON COLUMN loc.facilities.id IS '시설 고유 ID';
+COMMENT ON COLUMN loc.facilities.code IS '시설 코드';
+COMMENT ON COLUMN loc.facilities.name IS '시설 현장 호칭 명칭';
+COMMENT ON COLUMN loc.facilities.category IS '시설 유형';
+COMMENT ON COLUMN loc.facilities.address IS '주소';
+COMMENT ON COLUMN loc.facilities.contact_person IS '담당자';
+COMMENT ON COLUMN loc.facilities.contact_phone IS '연락처';
+COMMENT ON COLUMN loc.facilities.latitude IS '위도';
+COMMENT ON COLUMN loc.facilities.longitude IS '경도';
+COMMENT ON COLUMN loc.facilities.description IS '설명';
+COMMENT ON COLUMN loc.facilities.sort_order IS '정렬 순서';
+COMMENT ON COLUMN loc.facilities.created_at IS '레코드 생성 일시';
+COMMENT ON COLUMN loc.facilities.updated_at IS '레코드 마지막 업데이트 일시';
 
-CREATE TABLE loc.location_types (
+CREATE TABLE loc.space_types (
     id SERIAL PRIMARY KEY,
+    code VARCHAR(20) NOT NULL UNIQUE,
     name VARCHAR(100) NOT NULL UNIQUE, -- 예: 유입동, 반응조, 탈수동, 창고, 야외 등... 표준화된 구분
     description TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-COMMENT ON TABLE loc.location_types IS '장소 유형을 관리하는 테이블 (예: 유입동, 반응조, 창고)';
-COMMENT ON COLUMN loc.location_types.id IS '장소 유형 고유 ID';
-COMMENT ON COLUMN loc.location_types.name IS '장소 유형 명칭';
-COMMENT ON COLUMN loc.location_types.description IS '설명';
-COMMENT ON COLUMN loc.location_types.created_at IS '레코드 생성 일시';
-COMMENT ON COLUMN loc.location_types.updated_at IS '레코드 마지막 업데이트 일시';
+COMMENT ON TABLE loc.space_types IS '장소 유형을 관리하는 테이블 (예: 유입동, 반응조, 창고)';
+COMMENT ON COLUMN loc.space_types.id IS '장소 유형 고유 ID';
+COMMENT ON COLUMN loc.space_types.code IS '장소 유형 코드';
+COMMENT ON COLUMN loc.space_types.name IS '장소 유형 명칭';
+COMMENT ON COLUMN loc.space_types.description IS '설명';
+COMMENT ON COLUMN loc.space_types.created_at IS '레코드 생성 일시';
+COMMENT ON COLUMN loc.space_types.updated_at IS '레코드 마지막 업데이트 일시';
+-- 데이터 예시:
+-- (BLDG    건물	    처리장 내 건물)
+-- (FLR	    층	        건물의 층 (1F, B1))
+-- (ROOM	실(Room)	구획된 방)
+-- (TANK	수조(Tank)	물을 담는 구조물 (침전지 등))
+-- (ZONE	구역	    야외 특정 구역)
 
-CREATE TABLE loc.locations (
+CREATE TABLE loc.space_functions (
     id SERIAL PRIMARY KEY,
-    plant_id INTEGER NOT NULL REFERENCES loc.wastewater_plants(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 처리장 삭제 시 하위 위치도 삭제
-    location_type_id INTEGER REFERENCES loc.location_types(id) ON UPDATE CASCADE ON DELETE RESTRICT, -- 사용 중인 위치 유형은 삭제 불가
+    code VARCHAR(20) NOT NULL UNIQUE,  -- SED, AER, THK, PUMP, ELEC
+    name VARCHAR(100) NOT NULL UNIQUE, -- 침전, 포기, 농축, 펌프, 전기
+    category VARCHAR(50),              -- 대분류 (예: 수처리공정, 슬러지공정, 지원시설)
+    description TEXT
+);
+COMMENT ON TABLE loc.space_functions IS '장소 기능을 관리하는 테이블 (예: 침전, 포기, 농축, 펌프, 전기)';
+COMMENT ON COLUMN loc.space_functions.id IS '장소 기능 고유 ID';
+COMMENT ON COLUMN loc.space_functions.code IS '장소 기능 코드';
+COMMENT ON COLUMN loc.space_functions.name IS '장소 기능 명칭';
+COMMENT ON COLUMN loc.space_functions.description IS '설명';
+COMMENT ON COLUMN loc.space_functions.created_at IS '레코드 생성 일시';
+COMMENT ON COLUMN loc.space_functions.updated_at IS '레코드 마지막 업데이트 일시';
+-- 데이터 예시:
+-- ('GRT', '침사/유입', '수처리공정'),
+-- ('SED', '침전', '수처리공정'),
+-- ('BIO', '생물반응', '수처리공정'),
+-- ('ELEC', '전기/동력', '지원시설'),
+-- ('OFFICE', '사무/행정', '지원시설')
+
+CREATE TABLE loc.spaces(
+    id SERIAL PRIMARY KEY,
+    -- 소속 시설 (필수)
+    facility_id INTEGER NOT NULL REFERENCES loc.facilities(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    -- 공간 유형 (필수)
+    space_type_id INTEGER REFERENCES loc.space_types(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    -- 공간 기능 (선택)
+    space_function_id INTEGER REFERENCES loc.space_functions(id),
+    -- 상위 공간 (계층 구조용, NULL이면 최상위 건물/구역)
+    parent_id INTEGER REFERENCES loc.spaces(id) ON DELETE CASCADE,
+
+    code VARCHAR(20) NOT NULL UNIQUE,
     name VARCHAR(100) NOT NULL, -- 설치장소 또는 보관장소의 현장 호칭 명칭 (예: 반응조 A, 펌프실 1, 창고 2)
+
+    area_size NUMERIC(10, 2),             -- 면적 (m2) - Space 관리의 핵심 속성
+    is_restricted BOOLEAN DEFAULT false,  -- 출입 통제 구역 여부
+    
     description TEXT,
-    parent_location_id INTEGER REFERENCES loc.locations(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 상위 위치 삭제 시 하위 위치도 삭제
+
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(plant_id, name, parent_location_id) -- Ensures unique locations within a plant, considering hierarchy
+    UNIQUE NULLS NOT DISTINCT (facility_id, parent_id, name) -- Ensures unique locations within a plant, considering hierarchy
 );
-COMMENT ON TABLE loc.locations IS '처리장 내의 실제 장소 (설치 위치, 보관 위치 등)를 관리하는 테이블';
-COMMENT ON COLUMN loc.locations.id IS '장소 고유 ID';
-COMMENT ON COLUMN loc.locations.plant_id IS '소속 처리장 ID (FK)';
-COMMENT ON COLUMN loc.locations.location_type_id IS '장소 유형 ID (FK)';
-COMMENT ON COLUMN loc.locations.name IS '장소 현장 호칭 명칭';
-COMMENT ON COLUMN loc.locations.description IS '설명';
-COMMENT ON COLUMN loc.locations.parent_location_id IS '상위 장소 ID (계층 구조를 위해)';
-COMMENT ON COLUMN loc.locations.created_at IS '레코드 생성 일시';
-COMMENT ON COLUMN loc.locations.updated_at IS '레코드 마지막 업데이트 일시';
+COMMENT ON TABLE loc.spaces IS '처리장 내의 실제 장소 (설치 위치, 보관 위치 등)를 관리하는 테이블';
+COMMENT ON COLUMN loc.spaces.id IS '장소 고유 ID';
+COMMENT ON COLUMN loc.spaces.facility_id IS '소속 처리장 ID (FK)';
+COMMENT ON COLUMN loc.spaces.space_type_id IS '장소 유형 ID (FK)';
+COMMENT ON COLUMN loc.spaces.parent_id IS '상위 장소 ID (계층 구조를 위해)';
+COMMENT ON COLUMN loc.spaces.code IS '장소 유형 코드';
+COMMENT ON COLUMN loc.spaces.name IS '장소 현장 호칭 명칭';
+COMMENT ON COLUMN loc.spaces.area_size IS '면적 (m2)';
+COMMENT ON COLUMN loc.spaces.is_restricted IS '출입 통제 구역 여부';
+COMMENT ON COLUMN loc.spaces.description IS '설명';
+COMMENT ON COLUMN loc.spaces.created_at IS '레코드 생성 일시';
+COMMENT ON COLUMN loc.spaces.updated_at IS '레코드 마지막 업데이트 일시';
 
 --
 -- ven 스키마 테이블 (공급업체 관리)
 --
-CREATE TABLE ven.vendor_categories (
+CREATE TABLE ven.supplier_categories (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
     description TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-COMMENT ON TABLE ven.vendor_categories IS '공급업체 카테고리를 관리하는 테이블';
-COMMENT ON COLUMN ven.vendor_categories.id IS '공급업체 카테고리 고유 ID';
-COMMENT ON COLUMN ven.vendor_categories.name IS '카테고리 명칭';
-COMMENT ON COLUMN ven.vendor_categories.description IS '설명';
-COMMENT ON COLUMN ven.vendor_categories.created_at IS '레코드 생성 일시';
-COMMENT ON COLUMN ven.vendor_categories.updated_at IS '레코드 마지막 업데이트 일시';
+COMMENT ON TABLE ven.supplier_categories IS '공급업체 카테고리를 관리하는 테이블';
+COMMENT ON COLUMN ven.supplier_categories.id IS '공급업체 카테고리 고유 ID';
+COMMENT ON COLUMN ven.supplier_categories.name IS '카테고리 명칭';
+COMMENT ON COLUMN ven.supplier_categories.description IS '설명';
+COMMENT ON COLUMN ven.supplier_categories.created_at IS '레코드 생성 일시';
+COMMENT ON COLUMN ven.supplier_categories.updated_at IS '레코드 마지막 업데이트 일시';
 
-CREATE TABLE ven.vendors (
+CREATE TABLE ven.suppliers (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
     business_number VARCHAR(50) UNIQUE, -- 사업자 등록 번호
@@ -371,30 +423,30 @@ CREATE TABLE ven.vendors (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-COMMENT ON TABLE ven.vendors IS '공급업체 정보를 관리하는 테이블';
-COMMENT ON COLUMN ven.vendors.id IS '공급업체 고유 ID';
-COMMENT ON COLUMN ven.vendors.name IS '공급업체명';
-COMMENT ON COLUMN ven.vendors.business_number IS '사업자 등록 번호';
-COMMENT ON COLUMN ven.vendors.address IS '주소';
-COMMENT ON COLUMN ven.vendors.phone IS '전화번호';
-COMMENT ON COLUMN ven.vendors.email IS '이메일';
-COMMENT ON COLUMN ven.vendors.website IS '웹사이트 주소';
-COMMENT ON COLUMN ven.vendors.description IS '설명';
-COMMENT ON COLUMN ven.vendors.created_at IS '레코드 생성 일시';
-COMMENT ON COLUMN ven.vendors.updated_at IS '레코드 마지막 업데이트 일시';
+COMMENT ON TABLE ven.suppliers IS '공급업체 정보를 관리하는 테이블';
+COMMENT ON COLUMN ven.suppliers.id IS '공급업체 고유 ID';
+COMMENT ON COLUMN ven.suppliers.name IS '공급업체명';
+COMMENT ON COLUMN ven.suppliers.business_number IS '사업자 등록 번호';
+COMMENT ON COLUMN ven.suppliers.address IS '주소';
+COMMENT ON COLUMN ven.suppliers.phone IS '전화번호';
+COMMENT ON COLUMN ven.suppliers.email IS '이메일';
+COMMENT ON COLUMN ven.suppliers.website IS '웹사이트 주소';
+COMMENT ON COLUMN ven.suppliers.description IS '설명';
+COMMENT ON COLUMN ven.suppliers.created_at IS '레코드 생성 일시';
+COMMENT ON COLUMN ven.suppliers.updated_at IS '레코드 마지막 업데이트 일시';
 
-CREATE TABLE ven.vendor_vendor_categories (
-    vendor_id INTEGER NOT NULL REFERENCES ven.vendors(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 공급업체 삭제 시 연결 정보도 삭제
-    vendor_category_id INTEGER NOT NULL REFERENCES ven.vendor_categories(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 카테고리 삭제 시 연결 정보도 삭제
-    PRIMARY KEY (vendor_id, vendor_category_id)
+CREATE TABLE ven.supplier_supplier_categories (
+    supplier_id INTEGER NOT NULL REFERENCES ven.suppliers(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 공급업체 삭제 시 연결 정보도 삭제
+    supplier_category_id INTEGER NOT NULL REFERENCES ven.supplier_categories(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 카테고리 삭제 시 연결 정보도 삭제
+    PRIMARY KEY (supplier_id, supplier_category_id)
 );
-COMMENT ON TABLE ven.vendor_vendor_categories IS '공급업체와 카테고리 간의 다대다 관계 테이블';
-COMMENT ON COLUMN ven.vendor_vendor_categories.vendor_id IS '공급업체 ID (FK)';
-COMMENT ON COLUMN ven.vendor_vendor_categories.vendor_category_id IS '공급업체 카테고리 ID (FK)';
+COMMENT ON TABLE ven.supplier_supplier_categories IS '공급업체와 카테고리 간의 다대다 관계 테이블';
+COMMENT ON COLUMN ven.supplier_supplier_categories.supplier_id IS '공급업체 ID (FK)';
+COMMENT ON COLUMN ven.supplier_supplier_categories.supplier_category_id IS '공급업체 카테고리 ID (FK)';
 
-CREATE TABLE ven.vendor_contacts (
+CREATE TABLE ven.supplier_contacts (
     id SERIAL PRIMARY KEY,
-    vendor_id INTEGER NOT NULL REFERENCES ven.vendors(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 공급업체 삭제 시 연락처도 삭제
+    supplier_id INTEGER NOT NULL REFERENCES ven.suppliers(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 공급업체 삭제 시 연락처도 삭제
     name VARCHAR(100) NOT NULL,
     title VARCHAR(100),
     phone VARCHAR(50),
@@ -402,15 +454,15 @@ CREATE TABLE ven.vendor_contacts (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-COMMENT ON TABLE ven.vendor_contacts IS '공급업체의 담당자 정보를 관리하는 테이블';
-COMMENT ON COLUMN ven.vendor_contacts.id IS '연락처 고유 ID';
-COMMENT ON COLUMN ven.vendor_contacts.vendor_id IS '소속 공급업체 ID (FK)';
-COMMENT ON COLUMN ven.vendor_contacts.name IS '담당자 이름';
-COMMENT ON COLUMN ven.vendor_contacts.title IS '담당자 직함';
-COMMENT ON COLUMN ven.vendor_contacts.phone IS '담당자 전화번호';
-COMMENT ON COLUMN ven.vendor_contacts.email IS '담당자 이메일';
-COMMENT ON COLUMN ven.vendor_contacts.created_at IS '레코드 생성 일시';
-COMMENT ON COLUMN ven.vendor_contacts.updated_at IS '레코드 마지막 업데이트 일시';
+COMMENT ON TABLE ven.supplier_contacts IS '공급업체의 담당자 정보를 관리하는 테이블';
+COMMENT ON COLUMN ven.supplier_contacts.id IS '연락처 고유 ID';
+COMMENT ON COLUMN ven.supplier_contacts.supplier_id IS '소속 공급업체 ID (FK)';
+COMMENT ON COLUMN ven.supplier_contacts.name IS '담당자 이름';
+COMMENT ON COLUMN ven.supplier_contacts.title IS '담당자 직함';
+COMMENT ON COLUMN ven.supplier_contacts.phone IS '담당자 전화번호';
+COMMENT ON COLUMN ven.supplier_contacts.email IS '담당자 이메일';
+COMMENT ON COLUMN ven.supplier_contacts.created_at IS '레코드 생성 일시';
+COMMENT ON COLUMN ven.supplier_contacts.updated_at IS '레코드 마지막 업데이트 일시';
 
 --
 -- fms 스키마 테이블 (시설 관리 시스템)
@@ -472,9 +524,9 @@ COMMENT ON COLUMN fms.equipment_category_spec_definitions.created_at IS '레코�
 
 CREATE TABLE fms.equipments (
     id SERIAL PRIMARY KEY,
-    plant_id INTEGER NOT NULL REFERENCES loc.wastewater_plants(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 처리장 삭제 시 시설도 삭제
+    plant_id INTEGER NOT NULL REFERENCES loc.facilities(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 처리장 삭제 시 시설도 삭제
     equipment_category_id INTEGER NOT NULL REFERENCES fms.equipment_categories(id) ON UPDATE CASCADE ON DELETE RESTRICT, -- 사용 중인 시설 카테고리는 삭제 불가
-    current_location_id INTEGER REFERENCES loc.locations(id) ON UPDATE CASCADE ON DELETE SET NULL, -- 설치 위치 삭제 시 시설는 유지하고 위치만 NULL로
+    current_location_id INTEGER REFERENCES loc.spaces(id) ON UPDATE CASCADE ON DELETE SET NULL, -- 설치 위치 삭제 시 시설는 유지하고 위치만 NULL로
     name VARCHAR(100) NOT NULL, -- 시설의 현장 호칭 명칭 (예: 유입 펌프 #1, 반응조 혼합기)
     model_number VARCHAR(100),
     serial_number VARCHAR(100) UNIQUE,
@@ -529,7 +581,7 @@ CREATE TABLE fms.equipment_history ( -- 시설 유지보수 및 이력
     change_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     description TEXT,
     performed_by_user_id INTEGER REFERENCES usr.users(id) ON UPDATE CASCADE ON DELETE SET NULL, -- 사용자 삭제 시 이력은 유지하고 담당자만 NULL로
-    service_provider_vendor_id INTEGER REFERENCES ven.vendors(id) ON UPDATE CASCADE ON DELETE SET NULL, -- 공급업체 삭제 시 이력은 유지하고 업체만 NULL로
+    service_provider_supplier_id INTEGER REFERENCES ven.suppliers(id) ON UPDATE CASCADE ON DELETE SET NULL, -- 공급업체 삭제 시 이력은 유지하고 업체만 NULL로
     outsourcing BOOLEAN DEFAULT FALSE NOT NULL, -- 외주 여부
     next_service_date TIMESTAMP WITH TIME ZONE, -- 다음 서비스 예정일
     cost NUMERIC(19,4) DEFAULT 0,
@@ -544,7 +596,7 @@ COMMENT ON COLUMN fms.equipment_history.change_type IS '변경 유형 (NEW_INSTA
 COMMENT ON COLUMN fms.equipment_history.change_date IS '변경 발생 일시';
 COMMENT ON COLUMN fms.equipment_history.description IS '변경 내용 상세';
 COMMENT ON COLUMN fms.equipment_history.performed_by_user_id IS '작업 수행 사용자 ID (FK)';
-COMMENT ON COLUMN fms.equipment_history.service_provider_vendor_id IS '서비스 제공 공급업체 ID (FK)';
+COMMENT ON COLUMN fms.equipment_history.service_provider_supplier_id IS '서비스 제공 공급업체 ID (FK)';
 COMMENT ON COLUMN fms.equipment_history.outsourcing IS '외주 여부';
 COMMENT ON COLUMN fms.equipment_history.next_service_date IS '다음 서비스 예정일';
 COMMENT ON COLUMN fms.equipment_history.cost IS '발생 비용';
@@ -663,14 +715,14 @@ COMMENT ON COLUMN inv.materials_specs.updated_at IS '레코드 마지막 업데�
 CREATE TABLE inv.material_batches ( -- 자재 재고 배치 (FIFO 관리를 위해 필수)
     id SERIAL PRIMARY KEY,
     material_id INTEGER NOT NULL REFERENCES inv.materials(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 자재 삭제 시 배치도 삭제
-    plant_id INTEGER NOT NULL REFERENCES loc.wastewater_plants(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 처리장 삭제 시 배치도 삭제
-    storage_location_id INTEGER REFERENCES loc.locations(id) ON UPDATE CASCADE ON DELETE SET NULL, -- 보관 위치 삭제 시 배치는 유지하고 위치만 NULL로
+    plant_id INTEGER NOT NULL REFERENCES loc.facilities(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 처리장 삭제 시 배치도 삭제
+    storage_location_id INTEGER REFERENCES loc.spaces(id) ON UPDATE CASCADE ON DELETE SET NULL, -- 보관 위치 삭제 시 배치는 유지하고 위치만 NULL로
     lot_number VARCHAR(100),
     quantity NUMERIC(18, 2) NOT NULL CHECK (quantity >= 0),
     unit_cost NUMERIC(18, 2), -- NULL 허용 (무상 또는 가격 미정)
     received_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     expiration_date DATE,
-    vendor_id INTEGER REFERENCES ven.vendors(id) ON UPDATE CASCADE ON DELETE SET NULL, -- 공급업체 삭제 시 배치는 유지하고 업체만 NULL로
+    supplier_id INTEGER REFERENCES ven.suppliers(id) ON UPDATE CASCADE ON DELETE SET NULL, -- 공급업체 삭제 시 배치는 유지하고 업체만 NULL로
     notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -685,7 +737,7 @@ COMMENT ON COLUMN inv.material_batches.quantity IS '재고 수량';
 COMMENT ON COLUMN inv.material_batches.unit_cost IS '단가';
 COMMENT ON COLUMN inv.material_batches.received_date IS '입고 일시';
 COMMENT ON COLUMN inv.material_batches.expiration_date IS '만료일';
-COMMENT ON COLUMN inv.material_batches.vendor_id IS '공급업체 ID (FK)';
+COMMENT ON COLUMN inv.material_batches.supplier_id IS '공급업체 ID (FK)';
 COMMENT ON COLUMN inv.material_batches.notes IS '비고';
 COMMENT ON COLUMN inv.material_batches.created_at IS '레코드 생성 일시';
 COMMENT ON COLUMN inv.material_batches.updated_at IS '레코드 마지막 업데이트 일시';
@@ -693,7 +745,7 @@ COMMENT ON COLUMN inv.material_batches.updated_at IS '레코드 마지막 업데
 CREATE TABLE inv.material_transactions ( -- 자재 입출고 및 사용 이력
     id SERIAL PRIMARY KEY,
     material_id INTEGER NOT NULL REFERENCES inv.materials(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 자재 삭제 시 트랜잭션 기록도 삭제
-    plant_id INTEGER NOT NULL REFERENCES loc.wastewater_plants(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 처리장 삭제 시 트랜잭션 기록도 삭제
+    plant_id INTEGER NOT NULL REFERENCES loc.facilities(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 처리장 삭제 시 트랜잭션 기록도 삭제
     transaction_type VARCHAR(50) NOT NULL CHECK (transaction_type IN ('PURCHASE', 'USAGE', 'RETURN', 'ADJUSTMENT')), -- 트랜잭션 유형 제약 추가
     quantity_change NUMERIC(18, 2) NOT NULL, -- 입고는 양수, 출고(사용)는 음수
     transaction_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -701,7 +753,7 @@ CREATE TABLE inv.material_transactions ( -- 자재 입출고 및 사용 이력
     related_equipment_history_id INTEGER REFERENCES fms.equipment_history(id) ON UPDATE CASCADE ON DELETE SET NULL, -- 관련 시설 이력 삭제 시 트랜잭션은 유지하고 이력만 NULL로
     source_batch_id INTEGER REFERENCES inv.material_batches(id) ON UPDATE CASCADE ON DELETE SET NULL, -- 배치 삭제 시 트랜잭션은 유지하고 배치만 NULL로
     performed_by_user_id INTEGER REFERENCES usr.users(id) ON UPDATE CASCADE ON DELETE SET NULL, -- 사용자 삭제 시 트랜잭션은 유지하고 사용자만 NULL로
-    vendor_id INTEGER REFERENCES ven.vendors(id) ON UPDATE CASCADE ON DELETE SET NULL, -- 구매 시 공급업체
+    supplier_id INTEGER REFERENCES ven.suppliers(id) ON UPDATE CASCADE ON DELETE SET NULL, -- 구매 시 공급업체
     unit_price NUMERIC(19,4) DEFAULT 0, -- 구매 시 단가
     notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -718,7 +770,7 @@ COMMENT ON COLUMN inv.material_transactions.related_equipment_id IS '관련 시�
 COMMENT ON COLUMN inv.material_transactions.related_equipment_history_id IS '관련 시설 이력 ID (FK)';
 COMMENT ON COLUMN inv.material_transactions.source_batch_id IS '사용된 배치 ID (FK)';
 COMMENT ON COLUMN inv.material_transactions.performed_by_user_id IS '거래 수행 사용자 ID (FK)';
-COMMENT ON COLUMN inv.material_transactions.vendor_id IS '관련 공급업체 ID (FK)';
+COMMENT ON COLUMN inv.material_transactions.supplier_id IS '관련 공급업체 ID (FK)';
 COMMENT ON COLUMN inv.material_transactions.unit_price IS '단가 (구매 시)';
 COMMENT ON COLUMN inv.material_transactions.notes IS '비고';
 COMMENT ON COLUMN inv.material_transactions.created_at IS '레코드 생성 일시';
@@ -1087,7 +1139,7 @@ CREATE TABLE lims.sampling_points (
     id SERIAL PRIMARY KEY,
     code VARCHAR(10) UNIQUE, -- 최대 10자리 코드 허용
     name VARCHAR(255),
-    plant_id INTEGER REFERENCES loc.wastewater_plants(id) ON UPDATE CASCADE ON DELETE RESTRICT, -- 처리장 삭제 시 채수 지점도 삭제 불가
+    plant_id INTEGER REFERENCES loc.facilities(id) ON UPDATE CASCADE ON DELETE RESTRICT, -- 처리장 삭제 시 채수 지점도 삭제 불가
     memo TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -1176,7 +1228,7 @@ CREATE TABLE lims.samples (
     container_id INTEGER NOT NULL REFERENCES lims.sample_containers(id) ON UPDATE CASCADE ON DELETE RESTRICT, -- 시료 용기 삭제 시 시료도 삭제 불가
     parameters_for_analysis JSONB NOT NULL,
     amount INTEGER DEFAULT 1 NOT NULL,
-    storage_location_id INTEGER REFERENCES loc.locations(id) ON UPDATE CASCADE ON DELETE RESTRICT, -- 보관 위치 삭제 시 시료도 삭제 불가
+    storage_location_id INTEGER REFERENCES loc.spaces(id) ON UPDATE CASCADE ON DELETE RESTRICT, -- 보관 위치 삭제 시 시료도 삭제 불가
     analysis_status VARCHAR(20) DEFAULT 'Pending' CHECK (analysis_status IN ('Pending', 'In Progress', 'Completed', 'Canceled', 'On Hold')), -- 분석 상태 제약 추가
     request_date DATE,
     collected_date DATE,
@@ -1382,7 +1434,7 @@ CREATE TABLE lims.pr_views (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     user_id INTEGER NOT NULL REFERENCES usr.users(id) ON UPDATE CASCADE ON DELETE CASCADE, -- 사용자 삭제 시 사용자 정의 보기 삭제
-    plant_id INTEGER NOT NULL REFERENCES loc.wastewater_plants(id) ON UPDATE CASCADE ON DELETE RESTRICT, -- 처리장 삭제 시 보기 삭제 불가
+    plant_id INTEGER NOT NULL REFERENCES loc.facilities(id) ON UPDATE CASCADE ON DELETE RESTRICT, -- 처리장 삭제 시 보기 삭제 불가
     sampling_point_ids JSONB, -- JSONB 배열 형식 권장 (예: [1, 2, 3])
     parameter_ids JSONB,       -- JSONB 배열 형식 권장 (예: [10, 20, 30])
     memo TEXT,
@@ -1497,7 +1549,7 @@ CREATE TABLE ops.lines ( -- 처리 계열 정보
     code VARCHAR(10) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
     capacity INTEGER DEFAULT 0 NOT NULL, -- 계열 처리 용량
-    plant_id INTEGER NOT NULL REFERENCES loc.wastewater_plants(id) ON UPDATE CASCADE ON DELETE RESTRICT, -- 관련 처리장 삭제 시 계열도 삭제 불가
+    plant_id INTEGER NOT NULL REFERENCES loc.facilities(id) ON UPDATE CASCADE ON DELETE RESTRICT, -- 관련 처리장 삭제 시 계열도 삭제 불가
     memo TEXT,
     sort_order INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -1626,21 +1678,21 @@ COMMENT ON COLUMN ops.views.updated_at IS '레코드 마지막 업데이트 일�
 --
 -- usr 스키마
 CREATE INDEX idx_usr_departments_name ON usr.departments USING btree (name);
-CREATE INDEX idx_usr_departments_site_list_gin ON usr.departments USING GIN (site_list); -- JSONB GIN 인덱스 추가
+CREATE INDEX idx_usr_departments_facility_list_gin ON usr.departments USING GIN (facility_ids);
 CREATE INDEX idx_usr_users_department_id ON usr.users USING btree (department_id);
-CREATE INDEX idx_usr_users_username ON usr.users USING btree (username);
+CREATE INDEX idx_usr_users_name ON usr.users USING btree (name);
 
 -- loc 스키마
-CREATE INDEX idx_loc_wastewater_plants_name ON loc.wastewater_plants USING btree (name);
-CREATE INDEX idx_loc_location_types_name ON loc.location_types USING btree (name);
-CREATE INDEX idx_loc_locations_plant_id ON loc.locations USING btree (plant_id);
-CREATE INDEX idx_loc_locations_location_type_id ON loc.locations USING btree (location_type_id);
-CREATE INDEX idx_loc_locations_parent_location_id ON loc.locations USING btree (parent_location_id);
+CREATE INDEX idx_loc_facility_name ON loc.facilities USING btree (name);
+CREATE INDEX idx_loc_location_types_name ON loc.space_types USING btree (name);
+CREATE INDEX idx_loc_locations_plant_id ON loc.spaces USING btree (plant_id);
+CREATE INDEX idx_loc_locations_space_type_id ON loc.spaces USING btree (space_type_id);
+CREATE INDEX idx_loc_locations_parent_id ON loc.spaces USING btree (parent_id);
 
 -- ven 스키마
-CREATE INDEX idx_ven_vendors_name ON ven.vendors USING btree (name);
-CREATE INDEX idx_ven_vendor_categories_name ON ven.vendor_categories USING btree (name);
-CREATE INDEX idx_ven_vendor_contacts_vendor_id ON ven.vendor_contacts USING btree (vendor_id);
+CREATE INDEX idx_ven_suppliers_name ON ven.suppliers USING btree (name);
+CREATE INDEX idx_ven_supplier_categories_name ON ven.supplier_categories USING btree (name);
+CREATE INDEX idx_ven_supplier_contacts_supplier_id ON ven.supplier_contacts USING btree (supplier_id);
 
 -- fms 스키마
 CREATE INDEX idx_fms_equipment_categories_name ON fms.equipment_categories USING btree (name);
@@ -1724,8 +1776,6 @@ CREATE INDEX idx_lims_qc_sample_results_acceptance_criteria_gin ON lims.qc_sampl
 
 -- ops 스키마
 CREATE INDEX idx_ops_lines_plant_id ON ops.lines USING btree (plant_id);
--- 파티셔닝된 테이블은 개별 파티션에 인덱스 자동 생성되거나, 부모 테이블에 정의된 인덱스를 상속
--- ops.daily_plant_operations_partitioned에 대한 인덱스는 PRIMARY KEY 및 UNIQUE 제약으로 자동 생성
 CREATE INDEX idx_ops_daily_plant_operations_plant_id ON ops.daily_plant_operations USING btree (plant_id); -- 파티션 키가 아닌 다른 필드에 대한 인덱스 추가
 CREATE INDEX idx_ops_daily_line_operations_line_id ON ops.daily_line_operations USING btree (line_id);
 CREATE INDEX idx_ops_daily_line_operations_daily_plant_op_id ON ops.daily_line_operations USING btree (daily_plant_op_id);
@@ -1748,12 +1798,12 @@ DECLARE
     tables_to_trigger TEXT[] := ARRAY[
         'usr.departments',
         'usr.users',
-        'loc.wastewater_plants',
-        'loc.location_types',
-        'loc.locations',
-        'ven.vendor_categories',
-        'ven.vendors',
-        'ven.vendor_contacts',
+        'loc.facilities',
+        'loc.space_types',
+        'loc.spaces',
+        'ven.supplier_categories',
+        'ven.suppliers',
+        'ven.supplier_contacts',
         'fms.equipment_categories',
         'fms.equipments',
         'fms.equipment_specs',
@@ -1786,7 +1836,7 @@ DECLARE
         'lims.calibration_records',
         'lims.qc_sample_results',
         'ops.lines',
-        'ops.daily_plant_operations', -- 파티셔닝된 테이블 포함
+        'ops.daily_plant_operations',
         'ops.daily_line_operations',
         'ops.views'
     ];
