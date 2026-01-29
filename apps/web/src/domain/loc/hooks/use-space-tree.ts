@@ -1,68 +1,68 @@
 import { useMemo } from "react";
 import { TreeNode } from "@/shared/components/navigation/nav-tree";
 import { LocData, Facility, Space } from "../model/types";
-import { FACILITIES, SPACES, SPACE_TYPES } from "../data/loc-mock";
 
-export function useSpaceTreeNodes(searchTerm: string) {
-  return useMemo<TreeNode<LocData>[]>(() => {
-    const lowerTerm = searchTerm.toLowerCase();
+function buildSpaceTree(
+  facilities: Facility[],
+  spaces: Space[],
+  searchTerm: string,
+): TreeNode<LocData>[] {
+  const lowerTerm = searchTerm.toLowerCase();
 
-    // 1. 공간(Space)을 재귀적으로 트리 노드로 변환하는 함수
-    const buildSpaceTree = (
-      facilityId: number,
-      parentId: number | null,
-    ): TreeNode<LocData>[] => {
-      const children = SPACES.filter(
-        (s) =>
-          s.facility_id === facilityId && (s.parent_id ?? null) === parentId,
-      );
+  // 1. 시설 필터링
+  const filteredFacilities = searchTerm
+    ? facilities.filter((f) => f.name.toLowerCase().includes(lowerTerm))
+    : facilities;
 
-      return children
-        .map((space) => {
-          const childNodes = buildSpaceTree(facilityId, space.id);
-          const hasChildren = childNodes.length > 0;
+  // 2. 공간 관계 정리
+  const spacesByParent: Record<string, Space[]> = {};
+  const rootSpacesByFacility: Record<number, Space[]> = {};
 
-          // 검색 필터링: 검색어가 있으면, 자신이 검색되거나 자식 중에 검색된게 있어야 함
-          const matches =
-            !searchTerm ||
-            space.name.toLowerCase().includes(lowerTerm) ||
-            space.code.toLowerCase().includes(lowerTerm);
+  spaces.forEach((s) => {
+    if (s.parent_id) {
+      if (!spacesByParent[s.parent_id]) spacesByParent[s.parent_id] = [];
+      spacesByParent[s.parent_id].push(s);
+    } else {
+      if (!rootSpacesByFacility[s.facility_id])
+        rootSpacesByFacility[s.facility_id] = [];
+      rootSpacesByFacility[s.facility_id].push(s);
+    }
+  });
 
-          if (!matches && !hasChildren && searchTerm) return null;
+  // 3. 재귀적 공간 노드 생성
+  const createSpaceNode = (space: Space): TreeNode<LocData> => {
+    const childrenNodes = (spacesByParent[space.id] || []).map(createSpaceNode);
 
-          // 타입 정보 매핑 (아이콘 결정용)
-          const typeInfo = SPACE_TYPES.find(
-            (t) => t.id === space.space_type_id,
-          );
-          const enrichedSpace = { ...space, type_info: typeInfo };
-
-          return {
-            id: `space-${space.id}`,
-            label: space.name,
-            data: enrichedSpace,
-            children: childNodes,
-          } as TreeNode<LocData>;
-        })
-        .filter((node): node is TreeNode<LocData> => node !== null);
+    return {
+      id: `space-${space.id}`,
+      label: space.name,
+      data: { ...space, type: "space" } as LocData,
+      children: childrenNodes,
+      subInfo: [space.code],
     };
+  };
 
-    // 2. 시설(Facility)을 루트 노드로 생성
-    return FACILITIES.map((facility) => {
-      // 해당 시설의 최상위 공간(parent_id가 없는 공간)들 조회
-      const rootSpaces = buildSpaceTree(facility.id, null);
+  // 4. 시설 노드 생성 (카테고리 그룹 없이 바로 리턴)
+  return filteredFacilities.map((fac) => {
+    const facilityRootSpaces = rootSpacesByFacility[fac.id] || [];
+    const childrenNodes = facilityRootSpaces.map(createSpaceNode);
 
-      const matches =
-        !searchTerm || facility.name.toLowerCase().includes(lowerTerm);
+    return {
+      id: `fac-${fac.id}`,
+      label: fac.name,
+      data: { ...fac, type: "facility" } as LocData,
+      children: childrenNodes,
+      subInfo: [fac.code],
+    };
+  });
+}
 
-      if (!matches && rootSpaces.length === 0 && searchTerm) return null;
-
-      return {
-        id: `fac-${facility.id}`,
-        label: facility.name,
-        data: facility, // Facility 타입
-        children: rootSpaces,
-        // isExpanded: true, // 필요시 기본 펼침
-      } as TreeNode<LocData>;
-    }).filter((node): node is TreeNode<LocData> => node !== null);
-  }, [searchTerm]);
+export function useSpaceTreeNodes(
+  searchTerm: string,
+  facilities: Facility[],
+  spaces: Space[],
+) {
+  return useMemo(() => {
+    return buildSpaceTree(facilities, spaces, searchTerm);
+  }, [searchTerm, facilities, spaces]);
 }

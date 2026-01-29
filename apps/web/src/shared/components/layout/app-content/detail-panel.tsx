@@ -78,7 +78,7 @@ export function DetailPanel({
                   onClick={onSave}
                   className="h-9 px-8 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md transition-all active:scale-95 text-[13px]"
                 >
-                  <Save className="h-3.5 w-3.5 mr-2" /> 저장하기
+                  <Save className="h-3.5 w-3.5 mr-2" /> 저장
                 </Button>
               </>
             )}

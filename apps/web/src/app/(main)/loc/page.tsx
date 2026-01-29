@@ -1,5 +1,5 @@
 //import { Metadata } from "next";
-import { SpaceManagementView } from "@/domain/loc";
+import { SpaceManagementView } from "@loc/ui/views/space-management-view";
 
 // 브라우저 탭 제목 설정 (Server Component 기능)
 // export const metadata: Metadata = {
