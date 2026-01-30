@@ -1,68 +1,75 @@
 import { useMemo } from "react";
 import { TreeNode } from "@/shared/components/navigation/nav-tree";
 import { LocData, Facility, Space } from "../model/types";
-import { FACILITIES, SPACES, SPACE_TYPES } from "../data/loc-mock";
 
-export function useSpaceTreeNodes(searchTerm: string) {
-  return useMemo<TreeNode<LocData>[]>(() => {
+export function useSpaceTreeNodes(
+  searchTerm: string,
+  facilities: Facility[],
+  spaces: Space[],
+) {
+  return useMemo(() => {
     const lowerTerm = searchTerm.toLowerCase();
 
-    // 1. 공간(Space)을 재귀적으로 트리 노드로 변환하는 함수
-    const buildSpaceTree = (
-      facilityId: number,
-      parentId: number | null,
-    ): TreeNode<LocData>[] => {
-      const children = SPACES.filter(
-        (s) =>
-          s.facility_id === facilityId && (s.parent_id ?? null) === parentId,
+    // 1. 시설 필터링
+    const filteredFacs = searchTerm
+      ? facilities.filter((f) => f.name.toLowerCase().includes(lowerTerm))
+      : facilities;
+
+    // 2. 공간 계층 구조 정리 (ID 기반 연결)
+    const spacesByParent: Record<number, Space[]> = {};
+    const rootSpacesByFacility: Record<number, Space[]> = {};
+
+    spaces.forEach((s) => {
+      // (1) 부모가 있는 공간 (하위 공간)
+      if (s.parent_id) {
+        if (!spacesByParent[s.parent_id]) spacesByParent[s.parent_id] = [];
+        spacesByParent[s.parent_id].push(s);
+      }
+      // (2) 부모가 없는 공간 (시설 바로 아래 최상위 공간)
+      else {
+        if (!rootSpacesByFacility[s.facility_id])
+          rootSpacesByFacility[s.facility_id] = [];
+        rootSpacesByFacility[s.facility_id].push(s);
+      }
+    });
+
+    // 3. 재귀 함수: 공간 노드 생성
+    const createSpaceNode = (space: Space): TreeNode<LocData> => {
+      const childrenNodes = (spacesByParent[space.id] || []).map(
+        createSpaceNode,
       );
 
-      return children
-        .map((space) => {
-          const childNodes = buildSpaceTree(facilityId, space.id);
-          const hasChildren = childNodes.length > 0;
-
-          // 검색 필터링: 검색어가 있으면, 자신이 검색되거나 자식 중에 검색된게 있어야 함
-          const matches =
-            !searchTerm ||
-            space.name.toLowerCase().includes(lowerTerm) ||
-            space.code.toLowerCase().includes(lowerTerm);
-
-          if (!matches && !hasChildren && searchTerm) return null;
-
-          // 타입 정보 매핑 (아이콘 결정용)
-          const typeInfo = SPACE_TYPES.find(
-            (t) => t.id === space.space_type_id,
-          );
-          const enrichedSpace = { ...space, type_info: typeInfo };
-
-          return {
-            id: `space-${space.id}`,
-            label: space.name,
-            data: enrichedSpace,
-            children: childNodes,
-          } as TreeNode<LocData>;
-        })
-        .filter((node): node is TreeNode<LocData> => node !== null);
+      return {
+        id: `space-${space.id}`,
+        label: space.name,
+        // 공간 코드를 보조 정보로 표시
+        subInfo: [space.code],
+        data: { ...space, type: "space" } as LocData,
+        children: childrenNodes,
+      };
     };
 
-    // 2. 시설(Facility)을 루트 노드로 생성
-    return FACILITIES.map((facility) => {
-      // 해당 시설의 최상위 공간(parent_id가 없는 공간)들 조회
-      const rootSpaces = buildSpaceTree(facility.id, null);
+    // 4. [핵심 변경] 시설 노드 생성 (그룹핑 없이 바로 반환)
+    return filteredFacs.map((fac) => {
+      // 시설에 속한 최상위 공간들 찾기
+      const facilityRootSpaces = rootSpacesByFacility[fac.id] || [];
+      const childrenNodes = facilityRootSpaces.map(createSpaceNode);
 
-      const matches =
-        !searchTerm || facility.name.toLowerCase().includes(lowerTerm);
-
-      if (!matches && rootSpaces.length === 0 && searchTerm) return null;
+      // 보조 정보: 시설코드 + (있다면) 카테고리 이름
+      const subInfos = [fac.code];
+      if (fac.category_info) {
+        subInfos.push(fac.category_info.name);
+      }
 
       return {
-        id: `fac-${facility.id}`,
-        label: facility.name,
-        data: facility, // Facility 타입
-        children: rootSpaces,
-        // isExpanded: true, // 필요시 기본 펼침
-      } as TreeNode<LocData>;
-    }).filter((node): node is TreeNode<LocData> => node !== null);
-  }, [searchTerm]);
+        id: `fac-${fac.id}`,
+        label: fac.name,
+        subInfo: subInfos,
+        data: { ...fac, type: "facility" } as LocData,
+        children: childrenNodes,
+        // 기본적으로 펼쳐두고 싶다면 true (선택 사항)
+        // isExpanded: true
+      };
+    });
+  }, [searchTerm, facilities, spaces]);
 }
