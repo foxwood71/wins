@@ -34,9 +34,7 @@ import { FunctionManagerDialog } from "@loc/ui/dialogs/function-manager-dialog";
 import { TypeManagerDialog } from "@loc/ui/dialogs/type-manager-dialog";
 import { FacilityCategoryDialog } from "@loc/ui/dialogs/facility-category-dialog";
 
-// ----------------------------------------------------------------------------
-// 1. FacilityDetail (시설 상세)
-// ----------------------------------------------------------------------------
+// 1. FacilityDetail
 interface FacilityDetailProps {
   facility: Facility;
   isEditing: boolean;
@@ -54,7 +52,6 @@ export function FacilityDetail({
   onEdit,
   onSave,
   onCancel,
-  onDelete,
   facilityCategories = [],
   onUpdateFacilityCategories = () => {},
 }: FacilityDetailProps) {
@@ -65,14 +62,25 @@ export function FacilityDetail({
     setData(facility);
   }, [facility]);
 
+  const handleCategoryChange = (val: string) => {
+    const newId = Number(val);
+    const newInfo = facilityCategories.find((c) => c.id === newId);
+    setData({ ...data, category_id: newId, category_info: newInfo });
+  };
+
   return (
     <>
       <DetailPanel
         icon={Factory}
-        title={facility.name}
+        title={data.name || "새 시설"}
         subTitle={
           <div className="flex items-center gap-2">
-            <Badge variant="outline">{facility.code || ""}</Badge>
+            <Badge variant="outline" className="font-mono">
+              {data.code || "NEW"}
+            </Badge>
+            {data.category_info && (
+              <Badge variant="secondary">{data.category_info.name}</Badge>
+            )}
           </div>
         }
         mode={isEditing ? "edit" : "view"}
@@ -89,6 +97,18 @@ export function FacilityDetail({
               disabled={!isEditing}
             />
           </FormField>
+
+          {/* ✨ [수정] 코드 입력 가능하도록 변경 */}
+          <FormField label="시설 코드">
+            <Input
+              value={data.code || ""}
+              onChange={(e) => setData({ ...data, code: e.target.value })}
+              disabled={!isEditing}
+              placeholder="코드 입력"
+              className={cn(!isEditing && "bg-slate-100/50")}
+            />
+          </FormField>
+
           <FormField label="시설 분류">
             <FormSelectWithTool
               value={String(data.category_id || "")}
@@ -97,11 +117,37 @@ export function FacilityDetail({
                 value: String(c.id),
               }))}
               disabled={!isEditing}
-              onValueChange={(v) =>
-                setData({ ...data, category_id: Number(v) })
-              }
+              onValueChange={handleCategoryChange}
               showTool={isEditing}
               onToolClick={() => setIsCategoryManagerOpen(true)}
+            />
+          </FormField>
+
+          <FormField label="운영 상태">
+            <div
+              className={`flex items-center justify-between h-9 px-3 rounded-md border ${!isEditing ? "bg-slate-50" : "bg-white"}`}
+            >
+              <span
+                className={`text-sm font-medium ${data.is_active ? "text-emerald-600" : "text-slate-500"}`}
+              >
+                {data.is_active ? "운영 중 (Active)" : "중지됨 (Inactive)"}
+              </span>
+              {isEditing && (
+                <Switch
+                  checked={data.is_active}
+                  onCheckedChange={(v) => setData({ ...data, is_active: v })}
+                  className="data-[state=checked]:bg-emerald-500"
+                />
+              )}
+            </div>
+          </FormField>
+
+          <FormSectionHeader title="위치 및 상세" icon={MapPin} />
+          <FormField label="주소 / 위치" fullWidth>
+            <Input
+              value={data.address || ""}
+              onChange={(e) => setData({ ...data, address: e.target.value })}
+              disabled={!isEditing}
             />
           </FormField>
           <FormField label="설명 / 메모" fullWidth>
@@ -111,10 +157,12 @@ export function FacilityDetail({
                 setData({ ...data, description: e.target.value })
               }
               disabled={!isEditing}
+              className="resize-none min-h-[80px]"
             />
           </FormField>
         </FormGrid>
       </DetailPanel>
+
       <FacilityCategoryDialog
         open={isCategoryManagerOpen}
         onOpenChange={setIsCategoryManagerOpen}
@@ -125,132 +173,95 @@ export function FacilityDetail({
   );
 }
 
-// ----------------------------------------------------------------------------
-// 2. SpaceDetail (공간 상세)
-// ----------------------------------------------------------------------------
-interface SpaceDetailProps {
+// 2. SpaceForm
+interface SpaceFormProps {
   space: Space;
-  facility: Facility | null;
   ancestors: Space[];
-  hasChildren: boolean;
   isEditing: boolean;
   onEdit: () => void;
-  onSave: (data: any) => void;
+  onSave: (data: Space) => void;
   onCancel: () => void;
   onDelete: () => void;
   spaceFunctions: SpaceFunction[];
   onUpdateFunctions: (funcs: SpaceFunction[]) => void;
   spaceTypes: SpaceType[];
   onUpdateTypes: (types: SpaceType[]) => void;
-  facilityCategories?: FacilityCategory[];
-  onUpdateFacilityCategories?: (cats: FacilityCategory[]) => void;
 }
 
-export function SpaceDetail({
+function SpaceForm({
   space,
-  facility,
   ancestors,
-  hasChildren,
   isEditing,
   onEdit,
   onSave,
   onCancel,
   onDelete,
-  spaceFunctions = [],
+  spaceFunctions,
   onUpdateFunctions,
-  spaceTypes = [],
+  spaceTypes,
   onUpdateTypes,
-  facilityCategories = [],
-  onUpdateFacilityCategories,
-}: SpaceDetailProps) {
-  if (facility) {
-    return (
-      <FacilityDetail
-        facility={facility}
-        isEditing={isEditing}
-        onEdit={onEdit}
-        onCancel={onCancel}
-        onSave={onSave}
-        onDelete={onDelete}
-        facilityCategories={facilityCategories}
-        onUpdateFacilityCategories={onUpdateFacilityCategories}
-      />
-    );
-  }
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+}: SpaceFormProps) {
   const [data, setData] = useState<Space>(space);
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const [isFuncManagerOpen, setIsFuncManagerOpen] = useState(false);
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const [isTypeManagerOpen, setIsTypeManagerOpen] = useState(false);
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     setData(space);
   }, [space]);
 
-  const functionName = spaceFunctions.find(
-    (f) => f.id === data.space_function_id,
-  )?.name;
+  const handleTypeChange = (val: string) => {
+    const newId = Number(val);
+    const newInfo = spaceTypes.find((t) => t.id === newId);
+    setData({ ...data, space_type_id: newId, type_info: newInfo });
+  };
+
+  const handleFunctionChange = (val: string) => {
+    const newId = Number(val);
+    const newInfo = spaceFunctions.find((f) => f.id === newId);
+    setData({ ...data, space_function_id: newId, function_info: newInfo });
+  };
 
   return (
     <>
       <DetailPanel
         icon={MapPin}
-        title={space.name}
+        title={data.name || "새 공간"}
         subTitle={
           <div className="flex items-center flex-wrap gap-2">
-            <Badge
-              variant="outline"
-              className="bg-slate-50 text-slate-700 border-slate-300 font-mono font-medium"
-            >
-              {space.code || `SP-${space.id}`}
+            <Badge variant="outline" className="font-mono">
+              {data.code || "NEW"}
             </Badge>
             <span className="text-slate-300 h-3 border-l border-slate-300 mx-1"></span>
-            <div className="flex items-center flex-wrap gap-1">
-              {ancestors.map((anc) => (
-                <React.Fragment key={anc.id}>
-                  <Badge
-                    variant="outline"
-                    className="bg-white text-slate-600 border-slate-200"
-                  >
-                    {anc.name}
-                  </Badge>
-                  <ChevronRight className="h-3 w-3 text-slate-300" />
-                </React.Fragment>
-              ))}
-              <Badge
-                variant="secondary"
-                className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200"
-              >
-                {space.name}
+            {ancestors.map((anc) => (
+              <React.Fragment key={anc.id}>
+                <span
+                  className={cn(
+                    "text-xs",
+                    anc.id === -9999
+                      ? "text-slate-700 font-semibold"
+                      : "text-slate-500",
+                  )}
+                >
+                  {anc.name}
+                </span>
+                <ChevronRight className="h-3 w-3 text-slate-300" />
+              </React.Fragment>
+            ))}
+            <span className="text-xs font-bold text-slate-700">
+              {data.name}
+            </span>
+            {data.function_info && (
+              <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 gap-1 ml-2">
+                <Tag className="h-3 w-3" />
+                {data.function_info.name}
               </Badge>
-            </div>
-            {functionName && (
-              <>
-                <span className="text-slate-300 h-3 border-l border-slate-300 mx-1"></span>
-                <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200 gap-1 pl-1.5">
-                  <Tag className="h-3 w-3" />
-                  {functionName}
-                </Badge>
-              </>
             )}
             {!isEditing && (
               <div className="flex items-center pl-3 border-l border-slate-200 h-4 ml-auto">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={cn(
-                    "h-6 w-6 p-0 hover:bg-red-50 hover:text-red-600",
-                    hasChildren
-                      ? "text-slate-300 cursor-not-allowed"
-                      : "text-slate-400",
-                  )}
-                  disabled={hasChildren}
-                  title={
-                    hasChildren ? "하위 공간이 있어 삭제 불가" : "공간 삭제"
-                  }
+                  className="h-6 w-6 p-0 hover:bg-red-50 hover:text-red-600 text-slate-400"
                   onClick={(e) => {
                     e.stopPropagation();
                     onDelete();
@@ -270,19 +281,43 @@ export function SpaceDetail({
         <FormGrid>
           <FormSectionHeader title="공간 정보" icon={Settings} />
           <FormField label="명칭">
-            {/* ✨ [수정] || "" 추가 */}
             <Input
               value={data.name || ""}
               onChange={(e) => setData({ ...data, name: e.target.value })}
               disabled={!isEditing}
             />
           </FormField>
+
+          {/* ✨ [수정] 코드 입력 가능하도록 변경 */}
           <FormField label="관리 코드">
             <Input
               value={data.code || ""}
-              disabled
-              className="bg-slate-100/50 font-mono text-slate-500"
+              onChange={(e) => setData({ ...data, code: e.target.value })}
+              disabled={!isEditing}
+              placeholder="코드 입력"
+              className={cn(
+                !isEditing && "bg-slate-100/50 font-mono text-slate-500",
+              )}
             />
+          </FormField>
+
+          <FormField label="운영 상태">
+            <div
+              className={`flex items-center justify-between h-9 px-3 rounded-md border ${!isEditing ? "bg-slate-50" : "bg-white"}`}
+            >
+              <span
+                className={`text-sm font-medium ${data.is_active ? "text-emerald-600" : "text-slate-500"}`}
+              >
+                {data.is_active ? "운영 중 (Active)" : "중지됨 (Inactive)"}
+              </span>
+              {isEditing && (
+                <Switch
+                  checked={data.is_active}
+                  onCheckedChange={(v) => setData({ ...data, is_active: v })}
+                  className="data-[state=checked]:bg-emerald-500"
+                />
+              )}
+            </div>
           </FormField>
 
           <FormSelectWithTool
@@ -297,25 +332,37 @@ export function SpaceDetail({
             ]}
             disabled={!isEditing}
             onValueChange={(v) =>
-              setData({ ...data, space_function_id: Number(v) })
+              v === "none"
+                ? setData({
+                    ...data,
+                    space_function_id: null,
+                    function_info: undefined,
+                  })
+                : handleFunctionChange(v)
             }
             showTool={isEditing}
             onToolClick={() => setIsFuncManagerOpen(true)}
           />
 
-          <FormSectionHeader title="물리적 속성" icon={Maximize} />
-
+          <FormSectionHeader title="상세 속성" icon={Maximize} />
           <FormSelectWithTool
-            label="유형"
-            value={String(data.space_type_id)}
-            options={spaceTypes.map((t) => ({
-              label: t.name,
-              value: String(t.id),
-            }))}
+            label="공간 유형"
+            value={String(data.space_type_id || "none")}
+            options={[
+              { label: "선택 안함", value: "none" },
+              ...spaceTypes.map((t) => ({
+                label: t.name,
+                value: String(t.id),
+              })),
+            ]}
             disabled={!isEditing}
-            onValueChange={(v) =>
-              setData({ ...data, space_type_id: Number(v) })
-            }
+            onValueChange={(v) => {
+              if (v === "none") {
+                setData({ ...data, space_type_id: null, type_info: undefined });
+              } else {
+                handleTypeChange(v);
+              }
+            }}
             showTool={isEditing}
             onToolClick={() => setIsTypeManagerOpen(true)}
           />
@@ -342,7 +389,9 @@ export function SpaceDetail({
               className={`flex items-center justify-between h-9 px-3 rounded-md border ${!isEditing ? "bg-slate-50" : "bg-white"}`}
             >
               <span className="text-sm text-slate-600">
-                {data.is_restricted ? "통제 구역" : "일반 구역"}
+                {data.is_restricted
+                  ? "통제 구역 (Restricted)"
+                  : "일반 구역 (Public)"}
               </span>
               {isEditing && (
                 <Switch
@@ -350,13 +399,13 @@ export function SpaceDetail({
                   onCheckedChange={(v) =>
                     setData({ ...data, is_restricted: v })
                   }
+                  className="data-[state=checked]:bg-rose-500"
                 />
               )}
             </div>
           </FormField>
 
           <FormField label="설명 / 메모" fullWidth>
-            {/* ✨ [수정] || "" 추가 */}
             <Textarea
               value={data.description || ""}
               onChange={(e) =>
@@ -375,7 +424,6 @@ export function SpaceDetail({
         functions={spaceFunctions}
         onUpdate={onUpdateFunctions}
       />
-
       <TypeManagerDialog
         open={isTypeManagerOpen}
         onOpenChange={setIsTypeManagerOpen}
@@ -383,5 +431,56 @@ export function SpaceDetail({
         onUpdate={onUpdateTypes}
       />
     </>
+  );
+}
+
+// 3. SpaceDetail
+interface SpaceDetailProps {
+  space: Space;
+  facility: Facility | null;
+  ancestors?: Space[];
+  hasChildren?: boolean;
+  isEditing: boolean;
+  onEdit: () => void;
+  onSave: (data: Facility | Space) => void;
+  onCancel: () => void;
+  onDelete: () => void;
+  spaceFunctions?: SpaceFunction[];
+  onUpdateFunctions: (funcs: SpaceFunction[]) => void;
+  spaceTypes?: SpaceType[];
+  onUpdateTypes: (types: SpaceType[]) => void;
+  facilityCategories?: FacilityCategory[];
+  onUpdateFacilityCategories?: (cats: FacilityCategory[]) => void;
+}
+
+export function SpaceDetail(props: SpaceDetailProps) {
+  if (props.facility) {
+    return (
+      <FacilityDetail
+        facility={props.facility}
+        isEditing={props.isEditing}
+        onEdit={props.onEdit}
+        onCancel={props.onCancel}
+        onSave={props.onSave as (data: Facility) => void}
+        onDelete={props.onDelete}
+        facilityCategories={props.facilityCategories}
+        onUpdateFacilityCategories={props.onUpdateFacilityCategories}
+      />
+    );
+  }
+  return (
+    <SpaceForm
+      space={props.space}
+      ancestors={props.ancestors || []}
+      isEditing={props.isEditing}
+      onEdit={props.onEdit}
+      onSave={props.onSave as (data: Space) => void}
+      onCancel={props.onCancel}
+      onDelete={props.onDelete}
+      spaceFunctions={props.spaceFunctions || []}
+      onUpdateFunctions={props.onUpdateFunctions}
+      spaceTypes={props.spaceTypes || []}
+      onUpdateTypes={props.onUpdateTypes}
+    />
   );
 }

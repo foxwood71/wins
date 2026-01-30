@@ -10,6 +10,8 @@ export interface Facility {
   code: string;
   name: string;
   category_id: number;
+  // UI 헬퍼 속성 (DB에는 없지만 조인된 정보)
+  category_info?: FacilityCategory;
   address?: string;
   description?: string;
   is_active: boolean;
@@ -36,12 +38,13 @@ export interface SpaceFunction {
 export interface Space {
   id: number;
   facility_id: number;
-  space_type_id: number;
+  space_type_id?: number | null;
   space_function_id?: number | null;
   parent_id?: number | null;
   code: string;
   name: string;
   area_size?: number;
+  is_active: boolean;
   is_restricted: boolean;
   description?: string;
   // UI 헬퍼 속성 (DB에는 없지만 조인된 정보)

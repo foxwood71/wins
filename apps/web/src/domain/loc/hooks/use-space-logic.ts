@@ -1,267 +1,393 @@
-import { useState, useMemo } from "react";
-import {
-  FACILITIES as INITIAL_FACILITIES,
-  SPACES as INITIAL_SPACES,
-  SPACE_FUNCTIONS,
-  SPACE_TYPES as INITIAL_TYPES,
-  FACILITY_CATEGORIES as INITIAL_CATEGORIES, // ✨ import 추가
-} from "@loc/data/loc-mock";
-import { useSpaceTreeNodes } from "./use-space-tree";
+"use client";
+
+import { useState, useMemo, useCallback } from "react";
 import { TreeNode } from "@/shared/components/navigation/nav-tree";
 import {
   LocData,
-  Space,
   Facility,
+  Space,
+  SpaceFunction,
   SpaceType,
   FacilityCategory,
-} from "@loc/model/types"; // ✨ import 추가
+} from "../model/types";
 
-// 조상 찾기
-const getAncestors = (
-  currentSpace: Space | null,
-  allSpaces: Space[],
-): Space[] => {
-  const ancestors: Space[] = [];
-  let current = currentSpace;
-  while (current && current.parent_id) {
-    const parent = allSpaces.find((s) => s.id === current!.parent_id);
-    if (parent) {
-      ancestors.unshift(parent);
-      current = parent;
-    } else {
-      break;
-    }
-  }
-  return ancestors;
-};
+// 목업 데이터 (Raw Data)
+import {
+  FACILITIES as MOCK_FACILITIES,
+  SPACES as MOCK_SPACES,
+  SPACE_FUNCTIONS as MOCK_FUNCTIONS,
+  SPACE_TYPES as MOCK_TYPES,
+  FACILITY_CATEGORIES as MOCK_CATEGORIES,
+} from "../data/loc-mock";
+
+// 트리 생성 로직
+import { useSpaceTreeNodes } from "./use-space-tree";
+
+// 상태 인터페이스 정의
+export interface SpaceState {
+  // 데이터 상태
+  facilities: Facility[];
+  spaces: Space[];
+
+  // UI 상태
+  treeNodes: TreeNode<LocData>[];
+  selectedKey: string | number | null;
+  openItems: Record<string, boolean>;
+  searchTerm: string;
+  isEditing: boolean;
+
+  // 선택된 데이터 상세 (계산된 결과)
+  selectedFacility: Facility | null;
+  selectedSpace: Space | null;
+
+  // 경로 및 관계
+  ancestorPath: Space[];
+  hasChildren: boolean;
+
+  // 옵션 데이터 (드롭다운용)
+  spaceFunctions: SpaceFunction[];
+  spaceTypes: SpaceType[];
+  facilityCategories: FacilityCategory[];
+}
 
 export function useSpaceLogic() {
-  // [State] 데이터
-  const [facilities, setFacilities] = useState<Facility[]>(INITIAL_FACILITIES);
-  const [spaces, setSpaces] = useState<Space[]>(INITIAL_SPACES);
-  const [spaceTypes, setSpaceTypes] = useState<SpaceType[]>(INITIAL_TYPES);
-  const [spaceFunctions, setSpaceFunctions] = useState(SPACE_FUNCTIONS);
+  // ----------------------------------------------------------------------
+  // 1. 데이터 초기화 (ID 기반 매핑 -> 객체 연결)
+  // ----------------------------------------------------------------------
 
-  // ✨ [State 추가] 시설 분류 상태 관리 (이게 없어서 에러가 났습니다)
+  // (1) 시설 데이터 조립 (category_id -> category_info 연결)
+  const [facilities, setFacilities] = useState<Facility[]>(() => {
+    return MOCK_FACILITIES.map((fac) => ({
+      ...fac,
+      category_info: MOCK_CATEGORIES.find((c) => c.id === fac.category_id),
+    }));
+  });
+
+  // (2) 공간 데이터 조립 (type_id -> type_info 연결 등)
+  const [spaces, setSpaces] = useState<Space[]>(() => {
+    return MOCK_SPACES.map((sp) => ({
+      ...sp,
+      type_info: MOCK_TYPES.find((t) => t.id === sp.space_type_id),
+      function_info: sp.space_function_id
+        ? MOCK_FUNCTIONS.find((f) => f.id === sp.space_function_id)
+        : undefined,
+    }));
+  });
+
+  const [spaceFunctions, setSpaceFunctions] =
+    useState<SpaceFunction[]>(MOCK_FUNCTIONS);
+  const [spaceTypes, setSpaceTypes] = useState<SpaceType[]>(MOCK_TYPES);
   const [facilityCategories, setFacilityCategories] =
-    useState<FacilityCategory[]>(INITIAL_CATEGORIES);
+    useState<FacilityCategory[]>(MOCK_CATEGORIES);
 
-  // [State] UI 상태
-  const [selectedKey, setSelectedKey] = useState<string>(
-    `fac-${INITIAL_FACILITIES[0].id}`,
-  );
-  const [searchTerm, setSearchTerm] = useState("");
+  // UI 상태
+  const [selectedKey, setSelectedKey] = useState<string | number | null>(null);
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [isAllExpanded, setIsAllExpanded] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [isEditing, setIsEditing] = useState(false);
-  const [creationMode, setCreationMode] = useState<
-    "facility" | "child" | "sibling" | null
-  >(null);
 
-  // [Derived] 선택된 데이터 계산
-  const isFacilitySelected = selectedKey.startsWith("fac-");
-  const selectedIdNum = Number(selectedKey.split("-")[1]);
+  // ----------------------------------------------------------------------
+  // 2. 파생 데이터 계산
+  // ----------------------------------------------------------------------
 
-  const selectedFacility = isFacilitySelected
-    ? facilities.find((f) => f.id === selectedIdNum)
-    : facilities.find(
-        (f) => f.id === spaces.find((s) => s.id === selectedIdNum)?.facility_id,
-      );
-
-  const selectedSpace = !isFacilitySelected
-    ? spaces.find((s) => s.id === selectedIdNum)
-    : null;
-
-  const parentSpace = selectedSpace?.parent_id
-    ? spaces.find((s) => s.id === selectedSpace.parent_id)
-    : null;
-
-  const hasChildren = useMemo(() => {
-    if (!selectedSpace) return false;
-    return spaces.some((s) => s.parent_id === selectedSpace.id);
-  }, [selectedSpace, spaces]);
-
-  const ancestorPath = useMemo(() => {
-    if (!selectedSpace) return [];
-    return getAncestors(selectedSpace, spaces);
-  }, [selectedSpace, spaces]);
-
+  // (1) 트리 노드 생성
   const treeNodes = useSpaceTreeNodes(searchTerm, facilities, spaces);
 
-  // [Actions] CRUD 핸들러
-  const handleSaveFacility = (data: Partial<Facility>) => {
-    if (creationMode === "facility") {
-      const newId = Math.max(...facilities.map((f) => f.id), 0) + 1;
-      const newFac: Facility = {
-        id: newId,
-        name: data.name || "새 시설",
-        code: data.code || `FAC-${newId}`,
-        address: data.address || "",
-        description: data.description,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        category_id: Number(data.category_id) || 4, // 기본값 etc(4)
-        is_active: true,
-      };
-      setFacilities([...facilities, newFac]);
-      setSelectedKey(`fac-${newId}`);
-    } else if (selectedFacility) {
-      setFacilities(
-        facilities.map((f) =>
-          f.id === selectedFacility.id ? { ...f, ...data } : f,
-        ),
-      );
-    }
-    setIsEditing(false);
-    setCreationMode(null);
-  };
-
-  const handleSaveSpace = (data: Partial<Space>) => {
-    if (creationMode) {
-      const newId = Math.max(...spaces.map((s) => s.id), 0) + 1;
-      let parentId: number | undefined;
-
-      if (creationMode === "child") {
-        parentId = selectedSpace ? selectedSpace.id : undefined;
-      } else {
-        parentId = parentSpace ? parentSpace.id : undefined;
+  // (2) 선택된 항목 찾기 (ID 파싱 및 부모/경로 찾기)
+  const { selectedFacility, selectedSpace, ancestorPath, hasChildren } =
+    useMemo(() => {
+      if (!selectedKey) {
+        return {
+          selectedFacility: null,
+          selectedSpace: null,
+          ancestorPath: [],
+          hasChildren: false,
+        };
       }
 
-      const newSpace: Space = {
-        id: newId,
-        facility_id: selectedFacility!.id,
-        parent_id: parentId,
-        name: data.name || "새 공간",
-        code: data.code || `SP-${newId}`,
-        space_type_id: Number(data.space_type_id) || 1,
-        space_function_id: Number(data.space_function_id) || 0,
-        area_size: Number(data.area_size) || 0,
-        is_restricted: Boolean(data.is_restricted),
-        description: data.description,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      setSpaces([...spaces, newSpace]);
-      setSelectedKey(`space-${newId}`);
+      const keyStr = String(selectedKey);
+      let foundFac: Facility | null = null;
+      let foundSpace: Space | null = null;
 
-      // 폴더 열기
-      if (parentId)
-        setOpenItems((prev) => ({ ...prev, [`space-${parentId}`]: true }));
-      else
-        setOpenItems((prev) => ({
-          ...prev,
-          [`fac-${selectedFacility!.id}`]: true,
-        }));
-    } else if (selectedSpace) {
-      setSpaces(
-        spaces.map((s) => (s.id === selectedSpace.id ? { ...s, ...data } : s)),
-      );
-    }
-    setIsEditing(false);
-    setCreationMode(null);
-  };
+      // A. 시설 선택 (fac-100)
+      if (keyStr.startsWith("fac-")) {
+        const id = Number(keyStr.replace("fac-", ""));
+        foundFac = facilities.find((f) => f.id === id) || null;
 
-  const handleDelete = (targetId?: string) => {
-    const deleteKey = targetId || selectedKey;
-    const isFac = deleteKey.startsWith("fac-");
-    const idNum = Number(deleteKey.split("-")[1]);
+        // 시설 하위에 공간이 하나라도 있으면 자식 있음
+        const hasChild = spaces.some((s) => s.facility_id === id);
 
-    let targetName = "";
-    let hasChild = false;
-
-    if (isFac) {
-      const fac = facilities.find((f) => f.id === idNum);
-      if (!fac) return;
-      targetName = fac.name;
-      hasChild = spaces.some((s) => s.facility_id === idNum);
-    } else {
-      const sp = spaces.find((s) => s.id === idNum);
-      if (!sp) return;
-      targetName = sp.name;
-      hasChild = spaces.some((s) => s.parent_id === idNum);
-    }
-
-    if (hasChild) return alert("하위 항목이 있어 삭제할 수 없습니다.");
-    if (!confirm(`[${targetName}] 항목을 정말 삭제하시겠습니까?`)) return;
-
-    if (isFac) {
-      setFacilities(facilities.filter((f) => f.id !== idNum));
-      if (selectedKey === deleteKey)
-        setSelectedKey(`fac-${facilities[0]?.id || 0}`);
-    } else {
-      setSpaces(spaces.filter((s) => s.id !== idNum));
-      if (selectedKey === deleteKey) {
-        const deletedSpace = spaces.find((s) => s.id === idNum);
-        if (deletedSpace?.parent_id)
-          setSelectedKey(`space-${deletedSpace.parent_id}`);
-        else setSelectedKey(`fac-${deletedSpace?.facility_id}`);
+        return {
+          selectedFacility: foundFac,
+          selectedSpace: null,
+          ancestorPath: [],
+          hasChildren: hasChild,
+        };
       }
-    }
+
+      // B. 공간 선택 (space-101)
+      if (keyStr.startsWith("space-")) {
+        const id = Number(keyStr.replace("space-", ""));
+        foundSpace = spaces.find((s) => s.id === id) || null;
+
+        if (foundSpace) {
+          // 공간의 부모 시설 찾기
+          foundFac =
+            facilities.find((f) => f.id === foundSpace!.facility_id) || null;
+
+          // 조상 경로(Breadcrumbs) 계산
+          const path: Space[] = [];
+          let curr = foundSpace;
+          let loop = 0;
+          while (curr.parent_id && loop < 10) {
+            const parent = spaces.find((s) => s.id === curr.parent_id);
+            if (parent) {
+              path.unshift(parent);
+              curr = parent;
+            } else {
+              break;
+            }
+            loop++;
+          }
+
+          // 하위 공간 존재 여부
+          const hasChild = spaces.some((s) => s.parent_id === id);
+
+          return {
+            selectedFacility: foundFac,
+            selectedSpace: foundSpace,
+            ancestorPath: path,
+            hasChildren: hasChild,
+          };
+        }
+      }
+
+      return {
+        selectedFacility: null,
+        selectedSpace: null,
+        ancestorPath: [],
+        hasChildren: false,
+      };
+    }, [selectedKey, facilities, spaces]);
+
+  // ----------------------------------------------------------------------
+  // 3. 내부 헬퍼 함수
+  // ----------------------------------------------------------------------
+
+  // 하위 공간 일괄 상태 변경 (재귀, 켜기/끄기 모두 지원)
+  const updateChildrenStatus = (
+    parentId: number,
+    allSpaces: Space[],
+    status: boolean,
+  ): Space[] => {
+    const children = allSpaces.filter((s) => s.parent_id === parentId);
+    if (children.length === 0) return allSpaces;
+
+    let updatedSpaces = [...allSpaces];
+
+    children.forEach((child) => {
+      // 상태가 다를 경우에만 업데이트
+      if (child.is_active !== status) {
+        updatedSpaces = updatedSpaces.map((s) =>
+          s.id === child.id ? { ...s, is_active: status } : s,
+        );
+        // 재귀 호출
+        updatedSpaces = updateChildrenStatus(child.id, updatedSpaces, status);
+      }
+    });
+
+    return updatedSpaces;
   };
 
-  const handleToggle = (id: string) =>
+  // ----------------------------------------------------------------------
+  // 4. 액션 핸들러
+  // ----------------------------------------------------------------------
+
+  const handleSelectNode = useCallback((node: TreeNode<LocData>) => {
+    setSelectedKey(node.id);
+    setIsEditing(false);
+  }, []);
+
+  const handleToggle = useCallback((id: string) => {
     setOpenItems((prev) => ({ ...prev, [id]: !prev[id] }));
+  }, []);
 
-  const handleSelectNode = (node: TreeNode<LocData>) => {
-    setSelectedKey(String(node.id));
-    setCreationMode(null);
+  // [CRUD] 시설 저장
+  const handleSaveFacility = (updated: Facility) => {
+    // 1. 카테고리 정보 연결 (중요: 이거 없으면 트리에 안 나옴)
+    const categoryInfo = facilityCategories.find(
+      (c) => c.id === updated.category_id,
+    );
+    const newData = { ...updated, category_info: categoryInfo };
+
+    if (updated.id < 0) {
+      // [신규 생성]
+      const newId = Math.max(...facilities.map((f) => f.id), 0) + 1;
+      const finalCode = newData.code || `FAC-${newId}`;
+      const newFacility = { ...newData, id: newId, code: finalCode };
+
+      setFacilities((prev) => [...prev, newFacility]);
+
+      // ✨ [UX] 부모 카테고리 펼치기 & 새 시설 선택
+      const parentKey = `group-${newFacility.category_id}`;
+      setOpenItems((prev) => ({ ...prev, [parentKey]: true }));
+      setSelectedKey(`fac-${newId}`);
+    } else {
+      // [수정]
+      setFacilities((prev) =>
+        prev.map((f) => (f.id === updated.id ? newData : f)),
+      );
+
+      // 상태 변경 시 하위 공간 전파 (켜기/끄기 모두)
+      setSpaces((prevSpaces) => {
+        const rootSpaces = prevSpaces.filter(
+          (s) => s.facility_id === updated.id,
+        );
+        let nextSpaces = [...prevSpaces];
+
+        rootSpaces.forEach((root) => {
+          // 루트 공간 상태 동기화
+          if (root.is_active !== updated.is_active) {
+            nextSpaces = nextSpaces.map((s) =>
+              s.id === root.id ? { ...s, is_active: updated.is_active } : s,
+            );
+            // 그 하위 공간들도 재귀적으로 동기화
+            nextSpaces = updateChildrenStatus(
+              root.id,
+              nextSpaces,
+              updated.is_active,
+            );
+          }
+        });
+        return nextSpaces;
+      });
+    }
     setIsEditing(false);
   };
 
-  const handleCreate = (mode: "facility" | "child" | "sibling") => {
-    if (mode === "facility") {
-      setCreationMode("facility");
-      setIsEditing(true);
-      return;
-    }
+  // [CRUD] 공간 저장
+  const handleSaveSpace = (updated: Space) => {
+    // 1. 타입/기능 정보 연결 (중요)
+    const typeInfo = spaceTypes.find((t) => t.id === updated.space_type_id);
+    const funcInfo = updated.space_function_id
+      ? spaceFunctions.find((f) => f.id === updated.space_function_id)
+      : undefined;
+    const newData = {
+      ...updated,
+      type_info: typeInfo,
+      function_info: funcInfo,
+    };
 
-    if (!selectedFacility?.id) return alert("시설을 먼저 선택해주세요.");
+    if (updated.id < 0) {
+      // [신규 생성]
+      const newId = Math.max(...spaces.map((s) => s.id), 0) + 1;
+      const finalCode = newData.code || `SPC-${newId}`;
+      const newSpace = { ...newData, id: newId, code: finalCode };
 
-    if (isFacilitySelected && mode === "sibling") {
-      setCreationMode("facility");
+      setSpaces((prev) => [...prev, newSpace]);
+
+      // ✨ [UX] 부모 노드 펼치기 (시설이 부모일 수도, 공간이 부모일 수도 있음)
+      const parentKey = newSpace.parent_id
+        ? `space-${newSpace.parent_id}`
+        : `fac-${newSpace.facility_id}`;
+
+      setOpenItems((prev) => ({ ...prev, [parentKey]: true }));
+
+      // ✨ [UX] 새 공간 선택
+      setSelectedKey(`space-${newId}`);
     } else {
-      setCreationMode(mode);
-      if (mode === "child") {
-        setOpenItems((prev) => ({ ...prev, [selectedKey]: true }));
-      }
+      // [수정]
+      setSpaces((prevSpaces) => {
+        let nextSpaces = prevSpaces.map((s) =>
+          s.id === updated.id ? newData : s,
+        );
+
+        // 상태 변경 시 하위 공간 전파
+        nextSpaces = updateChildrenStatus(
+          updated.id,
+          nextSpaces,
+          updated.is_active,
+        );
+
+        return nextSpaces;
+      });
     }
-    setIsEditing(true);
+    setIsEditing(false);
   };
 
-  return {
-    state: {
-      selectedKey,
-      searchTerm,
-      openItems,
-      isEditing,
-      creationMode,
-      selectedFacility,
-      selectedSpace,
-      parentSpace,
-      hasChildren,
-      ancestorPath,
-      treeNodes,
-      spaceFunctions,
-      spaceTypes,
-      facilityCategories, // ✨ [Return 추가]
-    },
-    actions: {
-      setSearchTerm,
-      handleToggle,
-      handleSelectNode,
-      handleCreate,
-      setIsEditing,
-      cancelEdit: () => {
-        setIsEditing(false);
-        setCreationMode(null);
-      },
-      handleSaveFacility,
-      handleSaveSpace,
-      handleDelete,
-      setSpaceFunctions,
-      setSpaceTypes,
-      setFacilityCategories, // ✨ [Return 추가]
-    },
+  // [CRUD] 삭제 (방어 로직 포함)
+  const handleDelete = () => {
+    if (selectedSpace) {
+      // 하위 공간 존재 여부 확인
+      const hasChild = spaces.some((s) => s.parent_id === selectedSpace.id);
+      if (hasChild) {
+        alert(
+          "하위 공간이 존재하여 삭제할 수 없습니다.\n먼저 하위 공간을 삭제해주세요.",
+        );
+        return;
+      }
+
+      if (!confirm(`'${selectedSpace.name}' 공간을 정말 삭제하시겠습니까?`))
+        return;
+
+      setSpaces((prev) => prev.filter((s) => s.id !== selectedSpace.id));
+      setSelectedKey(null);
+    } else if (selectedFacility) {
+      // 소속 공간 존재 여부 확인
+      const hasChild = spaces.some(
+        (s) => s.facility_id === selectedFacility.id,
+      );
+      if (hasChild) {
+        alert(
+          "이 시설에 소속된 공간이 존재합니다.\n공간을 모두 삭제한 후 시설을 삭제할 수 있습니다.",
+        );
+        return;
+      }
+
+      if (!confirm(`'${selectedFacility.name}' 시설을 정말 삭제하시겠습니까?`))
+        return;
+
+      setFacilities((prev) => prev.filter((f) => f.id !== selectedFacility.id));
+      setSelectedKey(null);
+    }
   };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+  };
+
+  // 5. Return State & Actions
+  const state: SpaceState = {
+    facilities,
+    spaces,
+    treeNodes,
+    selectedKey,
+    openItems,
+    searchTerm,
+    isEditing,
+    selectedFacility,
+    selectedSpace,
+    ancestorPath,
+    hasChildren,
+    spaceFunctions,
+    spaceTypes,
+    facilityCategories,
+  };
+
+  const actions = {
+    setSearchTerm,
+    setIsEditing,
+    handleSelectNode,
+    handleToggle,
+    setOpenItems, // 전체 펼침/축소 및 자동 펼침용
+    handleSaveFacility,
+    handleSaveSpace,
+    handleDelete,
+    cancelEdit,
+    setSpaceFunctions,
+    setSpaceTypes,
+    setFacilityCategories,
+  };
+
+  return { state, actions };
 }
