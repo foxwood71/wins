@@ -1,0 +1,15 @@
+복합 아이콘 
+
+const SportsCenterIcon = () => (
+  <div className="relative w-5 h-5 flex-shrink-0">
+    {/* 건물 - 회색 */}
+    <FaBuilding className="h-5 w-5 text-gray-500 absolute inset-0" />
+    {/* 덤벨 - 주황색, 오른쪽 아래 */}
+    <FaDumbbell className="h-3 w-3 text-orange-500 absolute bottom-0 right-0" />
+  </div>
+);
+
+// 트리 노드나 버튼에서 사용
+<TreeNode icon={<SportsCenterIcon />} title="스포츠센터" />
+<Button icon={<SportsCenterIcon />} />
+다른 시설 복합 아이콘 예시
