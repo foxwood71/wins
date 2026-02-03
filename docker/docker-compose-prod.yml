@@ -1,0 +1,325 @@
+# version: "3.8"
+
+# 보안 비밀키 정의
+secrets:
+  pgsql-password:
+    file: ${PWD}/pgsql/pass.txt
+  pgsql-key:
+    file: ${PWD}/pgsql/pgsql.key
+  pgsql-cert:
+    file: ${PWD}/pgsql/pgsql.crt
+
+  pgadm-password:
+    file: ${PWD}/pgadm/pass.txt
+  pgadm-key:
+    file: ${PWD}/pgadm/pgadm.key
+  pgadm-cert:
+    file: ${PWD}/pgadm/pgadm.crt
+
+  gitea-password:
+    file: ${PWD}/gitea/pass.txt
+  gitea-key:
+    file: ${PWD}/gitea/gitea.key
+  gitea-cert:
+    file: ${PWD}/gitea/gitea.crt
+
+# 네트워크 정의
+networks:
+  # bridge driver for the app_net
+  app-net:
+    driver: bridge
+    # external: false
+
+# 볼륨 정의
+volumes:
+  pgsql-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/vols/pgsql
+
+  pgadm-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/vols/pgadm
+
+  gitea-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/vols/gitea/data
+
+  gitea-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/vols/gitea/etc
+
+  minio-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/vols/minio
+
+services:
+  # 1. Nginx 서비스 (리버스 프록시)
+  nginx:
+    image: nginx:latest
+    container_name: nginx-proxy
+    restart: always
+    ports:
+      - "80:80" # HTTP 포트 개방
+      # SSL(HTTPS) 필요 시 443 포트 추가 및 인증서 볼륨 마운트 필요
+      # - "443:443" # 인증서 적용시
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro # 호스트의 nginx.conf 파일 마운트
+    networks:
+      - app-net
+    depends_on:
+      - app
+      - gitea
+      - pgadmin4
+
+  # 2. Next.js App (Nginx가 참조 중)
+  app:
+    container_name: nextjs-app
+    build:
+      context: ./app # 실제 Next.js 프로젝트 경로로 수정하세요!
+      dockerfile: Dockerfile
+    restart: always
+    networks:
+      - app-net
+    environment:
+      - NODE_ENV=production
+    # 포트는 Nginx와 내부 통신하므로 expose만 해도 됨 (외부 노출 X)
+    expose:
+      - "3000"
+
+  # 3. MinIO (객체 스토리지)
+  minio:
+    image: minio/minio
+    container_name: fms-minio
+    restart: always
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - app-net
+    ports:
+      - "9000:9000" # API
+      - "9001:9001" # Console
+    env_file:
+      - ./minio/.env # 별도 env 파일 또는 통합 env 사용
+
+  # 4. Redis (인메모리 캐시)
+  redis:
+    image: redis:alpine
+    container_name: fms-redis
+    restart: always
+    networks:
+      - app-net
+    ports:
+      - "6379:6379"
+
+  # 5. postgres 서비스
+  postgres:
+    container_name: pgsql
+    build:
+      context: ./pgsql
+      dockerfile: Dockerfile
+    restart: always
+    # 복사될 폴더를 메모리(RAM) 기반 임시 저장소로 설정
+    tmpfs:
+      - /certs
+    volumes:
+      - pgsql-data:/var/lib/postgresql/data
+    networks:
+      - app-net
+    ports:
+      # .env에 정의된 포트 사용
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+    secrets:
+      - pgsql-password
+      # Compose secrets mode 사용시 래퍼 스크립트(Wrapper Script)" 패턴 적용
+      - pgsql-key
+      - pgsql-cert
+      # Swarm 모드에서 secrets를 마운트할 때 권한 설정
+      #
+      #- source: pgsql-key
+      #  target: /run/secrets/pgsql-key
+      #  uid: "999"   # <-- 999에서 1000으로 변경
+      #  gid: "999"
+      #  mode: 0400    # <-- 이게 핵심입니다 (읽기 권한 보장)
+      #
+      #- source: pgsql-cert
+      #  target: /run/secrets/pgsql-cert
+      #  uid: "999"
+      #  gid: "999"
+      #  mode: 0444
+    environment:
+      TZ: Asia/Seoul
+      POSTGRES_PASSWORD_FILE: /run/secrets/pgsql-password # <-- Secret password 파일위치
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+    env_file:
+      - ./pgsql/.env
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # 6. pgadmin4 서비스
+  pgadmin4:
+    image: dpage/pgadmin4:latest
+    restart: always
+    container_name: pgadm
+    user: root # <-- wrapper script때문에 script 실행 주체를 전환(pgadmin --> root로)
+    # 복사될 폴더를 메모리(RAM) 기반 임시 저장소로 설정
+    tmpfs:
+      - /certs
+    volumes:
+      # Mount a volume to persist pgAdmin 4 data
+      - pgadm-data:/var/lib/pgadmin
+      # - ./pgadm/00_configure_system.sh:/docker-entrypoint-initdb.d/00_configure_system.sh # <-- 미지원
+      - ./pgadm/entrypoint-wrapper.sh:/entrypoint-wrapper.sh # <-- wrapper script로 전환
+    networks:
+      - app-net
+    ports:
+      # Map host port 5050 to container port 15080:80, 15443:5443
+      # - "${PGADMIN_PORT_EXT}:${PGADMIN_PORT_INT}" # Nginx 사용 시 주석 처리 권장
+      - "${PGADMIN_PORT_EXT}:${PGADMIN_PORT_INT}"
+      - "${PGADMIN_PORT_SSL_EXT}:${PGADMIN_PORT_SSL_INT}"
+    secrets:
+      - pgadm-password
+      # Compose secrets mode 사용시 래퍼 스크립트(Wrapper Script)" 패턴 적용
+      - pgadm-key
+      - pgadm-cert
+      # Swarm 모드에서 secrets를 마운트할 때 권한 설정
+      #
+      #- source: pgadm-key
+      #  target: /run/secrets/pgadm-key
+      #  uid: "5050"   # <-- 999에서 1000으로 변경
+      #  gid: "5050"
+      #  mode: 0400    # <-- 이게 핵심입니다 (읽기 권한 보장)
+      #
+      #- source: pgadm-cert
+      #  target: /run/secrets/pgadm-cert
+      #  uid: "5050"
+      #  gid: "5050"
+    environment:
+      TZ: Asia/Seoul
+      # PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_DEFAULT_PASSWORD}"
+      PGADMIN_DEFAULT_PASSWORD_FILE: /run/secrets/pgadm-password # <-- Secret password 파일위치
+      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_DEFAULT_EMAIL}"
+      PGADMIN_ENABLE_TLS: 1 # PGADMIN_ENABLE_TLS: 0 # [변경] Nginx 뒤에 있으므로 HTTP 모드 사용
+    env_file: # container 내부 환경 변수 설정 파일
+      - ./pgadm/.env
+    depends_on:
+      # Ensure that this service starts after 'postgres'
+      postgres:
+        condition: service_healthy
+    # Wrapper Script 실행
+    entrypoint: ["/bin/sh", "/entrypoint-wrapper.sh"]
+
+  # 7. gitea 서비스
+  gitea:
+    image: gitea/gitea:latest
+    container_name: gitea
+    restart: always
+    # user: root # <-- 기본적으로 root 유저로 실행해서 주석처리
+    # 복사될 폴더를 메모리(RAM) 기반 임시 저장소로 설정
+    tmpfs:
+      - /certs
+    volumes:
+      - gitea-data:/data
+      #-gitea-config:/etc/gitea  -- 미사용
+      #- ./gitea/00_configure_system.sh:/docker-entrypoint-initdb.d/00_configure_system.sh # <-- 미지원
+      - ./gitea/entrypoint-wrapper.sh:/entrypoint-wrapper.sh # <-- wrapper script로 전환
+    networks:
+      - app-net
+    ports:
+      #- "13443:443"
+      # - "3000:3000" # [변경] 웹 포트는 Nginx가 처리하므로 주석 처리
+      - "3000:3000"
+      - "222:22"
+    secrets:
+      - gitea-password
+      # Compose secrets mode 사용시 래퍼 스크립트(Wrapper Script)" 패턴 적용
+      - gitea-key
+      - gitea-cert
+      # Swarm 모드에서 secrets를 마운트할 때 권한 설정
+      #
+      #- source: pgagiteadm-key
+      #  target: /run/secrets/gitea-key
+      #  uid: "1000"   # <-- 999에서 1000으로 변경
+      #  gid: "1000"
+      #  mode: 0400    # <-- 이게 핵심입니다 (읽기 권한 보장)
+      #
+      #- source: gitea-cert
+      #  target: /run/secrets/gitea-cert
+      #  uid: "1000"
+      #  gid: "1000"
+    environment:
+      TZ: Asia/Seoul
+      USER_UID: 1000 # <-- git의 UID(User ID)
+      USER_GID: 1000 # <-- git의 GID(Group ID)
+      #GITEA__[SECTION_NAME]__[VARIABLE]: value
+      # database
+      GITEA__database__DB_TYPE: postgres
+      GITEA__database__HOST: pgsql:5432
+      GITEA__database__NAME: ${GITEA_DB} # 환경 변수 연동
+      GITEA__database__USER: ${GITEA_USER}
+      GITEA__database__PASSWD_FILE: /run/secrets/gitea-password # <-- Secret password 파일위치
+      # 사설 인증서이므로 검증을 건너뛰거나(skip-verify), prefer 모드 사용
+      # 주의: 사설 인증서 사용 시 'verify-full'을 쓰려면 CA 인증서를 Gitea 컨테이너에도 넣어야 합니다.
+      # 일단 접속이 안 된다면 'disable'로 테스트 후 'require'로 올리세요.
+      GITEA__database__SSL_MODE:
+        require # 내부망 통신이므로 disable 권장 (필요시 require)
+        # GITEA__database__PASSWD: gitea
+
+      # server
+      #GITEA__server__DOMAIN: localhost 기본값은 미설정
+      #GITEA__server__SSH_DOMAIN: localhost 기본값은 미설정
+      GITEA__server__HTTP_PORT: 3000
+      #GITEA__server__REDIRECT_OTHER_PORT: true
+      GITEA__server__PROTOCOL: https
+      #GITEA__server__ROOT_URL: 기본값은 미설정
+
+      # COMMENT OUT LETSENCRYPT VALUES IF YOU HAVE OWN CERTS FILES!!
+      #GITEA__server__ENABLE_ACME: true
+      #GITEA__server__ACME_ACCEPTTOS: true
+      #GITEA__server__ACME_DIRECTORY: https
+      #GITEA__server__ACME_EMAIL: my@email.com
+
+      # OPTIONAL. OWN CERTS FILES IF YOU HAVE THE ONES
+      # 인증서 설정 주석 처리 (Nginx에서 처리시)
+      GITEA__server__CERT_FILE: /certs/server.cert
+      GITEA__server__KEY_FILE: /certs/server.key
+
+    # environment: app.ini
+    #  - GITEA__security__SECRET_KEY=[value returned by generate secret SECRET_KEY]
+    #  - GITEA__security__INTERNAL_TOKEN=[value returned by generate secret INTERNAL_TOKEN]
+    #  - GITEA__mailer__ENABLED=true
+    #  - GITEA__mailer__FROM=${GITEA__mailer__FROM:?GITEA__mailer__FROM not set}
+    #  - GITEA__mailer__PROTOCOL=smtps
+    #  - GITEA__mailer__SMTP_ADDR=${GITEA__mailer__SMTP_ADDR:?GITEA__mailer__SMTP_ADDR not set}
+    #  - GITEA__mailer__SMTP_PORT=${GITEA__mailer__SMTP_PORT:?GITEA__mailer__SMTP_PORT not set}
+    #  - GITEA__mailer__USER=${GITEA__mailer__USER:-apikey}
+    #  - GITEA__mailer__PASSWD="""${GITEA__mailer__PASSWD:?GITEA__mailer__PASSWD not set}""""
+
+    env_file: # container 내부 환경 변수 설정 파일
+      - ./gitea/.env
+    depends_on:
+      # Ensure that this service starts after 'postgres'
+      postgres:
+        condition: service_healthy
+    ## Wrapper Script 실행
+    entrypoint: ["/bin/sh", "/entrypoint-wrapper.sh"]

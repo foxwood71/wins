@@ -1,0 +1,122 @@
+version: "3.8"
+
+networks:
+  app-net:
+    driver: bridge
+
+services:
+  # 1. Nginx (개발용 프록시)
+  nginx:
+    image: nginx:latest
+    container_name: wins-nginx-dev
+    restart: always
+    ports:
+      - "80:80" # 브라우저 진입점
+    volumes:
+      # 개발용 설정을 읽도록 마운트
+      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - app-net
+    depends_on:
+      - app
+      - gitea
+      - pgadmin4
+
+  # 2. Next.js App (핫 리로딩 지원)
+  app:
+    container_name: wins-app-dev
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile
+    command: npm run dev # 개발 서버 실행
+    volumes:
+      - ./apps/web:/app # 소스 코드 동기화 (Hot Reload)
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      # DB 연결 (Secrets 없이 환경변수 사용)
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    networks:
+      - app-net
+
+  # 3. Postgres (pgroonga 공식 이미지 사용, Postgres 15 기반)
+  postgres:
+    build:
+      context: ./pgsql # Dockerfile이 있는 폴더 경로
+      dockerfile: Dockerfile # 파일명
+    image: wins-db-custom:dev # 빌드된 이미지에 붙일 이름 (캐시용)
+    container_name: wins-db-dev
+    ports:
+      - "5432:5432" # 개발 편의를 위해 외부 개방
+    environment:
+      # Secrets 파일 대신 환경변수로 비밀번호 직접 주입 (개발용)
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: Asia/Seoul
+    volumes:
+      # 개발용 데이터는 운영과 분리된 폴더 사용
+      - ./vol/pgsql_dev:/var/lib/postgresql/data
+    networks:
+      - app-net
+
+  # 4. Gitea (Secrets 없이 실행)
+  gitea:
+    image: gitea/gitea:latest
+    container_name: wins-gitea-dev
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - GITEA__database__DB_TYPE=postgres
+      - GITEA__database__HOST=postgres:5432
+      - GITEA__database__NAME=${GITEA_DB}
+      - GITEA__database__USER=${GITEA_USER}
+      - GITEA__database__PASSWD=${GITEA_PASSWORD} # .env에서 가져옴
+      - GITEA__server__DOMAIN=git.localhost
+      - GITEA__server__ROOT_URL=http://git.localhost/
+      - GITEA__server__HTTP_PORT=3000
+    volumes:
+      - ./vols/gitea_dev:/data
+    networks:
+      - app-net
+    depends_on:
+      - postgres
+
+  # 5. pgAdmin (간편 설정)
+  pgadmin4:
+    image: dpage/pgadmin4:latest
+    container_name: wins-pgadmin-dev
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "admin@admin.com"
+      PGADMIN_DEFAULT_PASSWORD: "admin"
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    volumes:
+      - ./vols/pgadm_dev:/var/lib/pgadmin
+    networks:
+      - app-net
+    depends_on:
+      - postgres
+
+  # 6. MinIO & Redis (기존 유지)
+  minio:
+    image: minio/minio
+    container_name: wins-minio-dev
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ./vols/minio_dev:/data
+    networks:
+      - app-net
+
+  redis:
+    image: redis:alpine
+    container_name: wins-redis-dev
+    ports:
+      - "6379:6379"
+    networks:
+      - app-net

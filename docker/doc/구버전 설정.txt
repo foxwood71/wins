@@ -1,0 +1,579 @@
+# @ gittea & mariadb docker composer 설치
+# ====================================================================
+#  < postgresql image 테스트 > 
+# ====================================================================
+# @ docker test
+#   $ docker run -p 5432:5432 --name pgsql \
+#     -e POSTGRES_USER=postgres \
+#     -e POSTGRES_PASSWORD_FILE=/run/secrets/pgsql_pw \
+#     -e TZ=Asia/Seoul \
+#     -v ~/projects/gumc/pgsql.txt:/run/secrets/pgsql_pw:ro \
+#     -v ~/projects/gumc/pgsql/:/var/lib/postgresql/data \
+#     --health-cmd "pg_isready -U postgres -h localhost -p 5432 >> dev/null" \
+#     --health-interval 10s \
+#     --health-timeout 5s \
+#     --health-retries 5 \
+#     -d postgres:15.8
+#
+# ====================================================================
+#  < 웹브라우저 테스트 >
+# ====================================================================
+#   browser에서 port 5050으로 접속
+#   id/pass 입력후
+#   서버등록에서 주소를 pgsql / 사용자를 postgres로 설정하고 등록
+# ====================================================================
+#
+# ====================================================================
+#  < 콘솔 접속 테스트 >
+# ====================================================================
+#   $ docker exec -it 이미지명 bash
+#   $ docker exec -it pgsql bash
+# ====================================================================
+#
+# ====================================================================
+#  < 도커 스웜(Docker Swarm) >
+# ====================================================================
+# @ 도커 Secret 사용 민감한 데이터 관리
+#    사용자 패스워드
+#    TLS 인증서 및 키
+#    SSH 키
+#    데이터베이스 접속 정보
+#    일반 문자열 및 바이너리 (최대 500kb 크기)
+#
+#  - 도커 스웜(Docker Swarm) 모드 활성화 필요 - 도커 엔진에 내장되어 개별 설치 불요
+#  > 스워 클러스터 생성
+#    $ docker swarm init --advertise-addr <manager-private-ip>[:port(default 2377)]
+#    $ docker swarm init --advertise-addr 172.22.97.154
+#  > 워커 노드 추가
+#    $ docker swarm join \
+#      --token SWMTKN-1-5dxzz5mrhjlwnxlogz83f0d1uxbiywdcmelvwsqb0gsvyq1z-1hbzg52wdkn19csxxxxxxxxxx \
+#      <manager-private-ip>:<port>
+#  > secret 
+#   1. 지정된 경로의 텍스트 파일 내용을 읽어들여 생성한다.
+#     $ docker secret create my-secret ~/my-secret.json
+#   2. 'STDIN' 으로 들어온 입력값을 받아서 생성한다.
+#     $ echo "<string>" | docker secret create <Secret 이름> - <value> => secret object create
+#     $ echo "pgpass" | docker secret create pgsql_password -
+#     $ echo "pgadpass" | docker secret create pgadmin4_password -
+#   3. secret 확인
+#     $ docker secret ls <- 목록확인
+#     $ docker secret inspect <Secret 이름> <- 상세 확인 
+#     $ docker secret rm <Secret 이름> <- 삭제
+#
+# ====================================================================
+#
+# ====================================================================
+#  < 사전작업 > 
+# ====================================================================
+#
+# @ docker compose 프로젝트 디렉토리 생성
+#   $ mkdir -p ~/porjects/gumc && cd ~/porjects/gumc
+#
+# @ data directory 만들기
+#   $ mkdir -p vol/pgsql vol/pgadm vol/gitea/etc vol/gitea/data
+#   $ mkdir pgsql gitea pgadm
+#
+# @ docker 한글지원 image 빌드 스크립트 생성 
+#   $ touch pgsql/Dockerfile
+#   $ code pgsql/Dockerfile
+#     # Dockerfile
+#     FROM postgres:16-bookworm
+#     # 1. pg_bigm .deb 파일을 Docker 이미지 빌드 컨텍스트에 복사
+#     #    (이 Dockerfile과 postgresql-17-pg-bigm_1.2-1PIGSTY~bookworm_amd64.deb 파일이 같은 디렉토리에 있어야 합니다.)
+#     COPY postgresql-16-pg-bigm_1.2-1PIGSTY~bookworm_amd64.deb /tmp/
+#     COPY pgsql.key /etc/ssl/certs/server.key
+#     COPY pgsql.crt /etc/ssl/certs/server.crt
+#     # COPY docker-entrypoint-initdb.d/ /docker-entrypoint-initdb.d/
+#     COPY 01_set_config.sh /docker-entrypoint-initdb.d/01_set_config.sh
+#     COPY 02_init.sql /docker-entrypoint-initdb.d/02_init.sql
+#     # root 권한으로 파일 권한 설정
+#     RUN chown root:postgres /etc/ssl/certs/server.key && \
+#         chmod 0640 /etc/ssl/certs/server.key && \
+#         chown root:postgres /etc/ssl/certs/server.crt && \
+#         chmod 0640 /etc/ssl/certs/server.crt && \
+#         chown root:postgres /docker-entrypoint-initdb.d/01_set_config.sh && \
+#         chmod +x /docker-entrypoint-initdb.d/01_set_config.sh && \
+#         chown root:postgres /docker-entrypoint-initdb.d/02_init.sql
+#     # 한글 로케일 및 시간대 설정
+#     RUN apt-get update && apt-get install -y locales \
+#         postgresql-common \
+#         postgresql-contrib-$PG_MAJOR \
+#         postgresql-$PG_MAJOR-cron \
+#         && sed -i 's/# ko_KR.UTF-8 UTF-8/ko_KR.UTF-8 UTF-8/' /etc/locale.gen \
+#         && locale-gen ko_KR.UTF-8 \
+#         && ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime \
+#         && rm -rf /var/lib/apt/lists/* \
+#         && dpkg -i /tmp/postgresql-16-pg-bigm_1.2-1PIGSTY~bookworm_amd64.deb || apt-get install -fy \
+#         && rm -rf /var/lib/apt/lists/* /tmp/postgresql-16-pg-bigm_1.2-1PIGSTY~bookworm_amd64.deb
+#     # Add Pigsty's GPG public key to your system keychain to verify package signatures
+#     #RUN curl -fsSL https://repo.pigsty.io/key | gpg --dearmor -o /etc/apt/keyrings/pigsty.gp
+#     ## Get Debian distribution codename (distro_codename=jammy, focal, bullseye, bookworm), and write the corresponding upstream repository address to the APT List file
+#     #ARG DISTRO_CODENAME="bookworm" # postgres:latest (Debian 12)의 코드네임 distro_codename=$(lsb_release -cs) 
+#     #RUN echo "deb [signed-by=/etc/apt/keyrings/pigsty.gpg] https://repo.pigsty.io/apt/infra generic main" | tee /etc/apt/sources.list.d/pigsty-io.list > /dev/null \
+#     #    && echo "deb [signed-by=/etc/apt/keyrings/pigsty.gpg] https://repo.pigsty.io/apt/pgsql ${DISTRO_CODENAME} main" | tee -a /etc/apt/sources.list.d/pigsty-io.list > /dev/null 
+#     #RUN apt-get update
+#     #RUN apt-get install -y --no-install-recommends \
+#     #    curl \
+#     #    gpg \
+#     #   && postgresql-$PG_MAJOR-pg-bigm \
+#     ENV LANG=ko_KR.UTF-8
+#     ENV LC_ALL=ko_KR.UTF-8
+#     ENV TZ=Asia/Seoul
+#     # 인증서 및 설정 파일 복사
+#     #COPY pgsql.crt /etc/ssl/certs/server.crt
+#     #COPY pgsql.key /etc/ssl/certs/server.key
+#     #COPY postgresql.conf /etc/postgresql/postgresql.conf
+#     #COPY pg_hba.conf /etc/postgresql/pg_hba.conf
+#     # 권한 설정 (PostgreSQL이 읽을 수 있도록)
+#     #RUN chown postgres:postgres /etc/ssl/certs/server.crt /etc/ssl/certs/server.key \
+#     #  && chmod 600 /etc/ssl/certs/server.key
+#     # 엔트리포인트 오버라이드 (설정파일 위치 지정)
+#     #CMD ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf", "-c", "hba_file=/etc/postgresql/pg_hba.conf"]
+#
+#    
+# @ docker compose - 초기화 스크립트 생성 
+##   -- 초기화 shell script --
+# 
+#   $ touch pgsql/01_set_config.sh
+#   $ chmod +x pgsql/01_set_config.sh
+#   $ code pgsql/01_set_config.sh   
+#     
+#     #!/bin/bash
+#     set -e
+#     
+#     # postgresql.conf 파일 경로 설정 (PostgreSQL 이미지에 따라 다를 수 있음)
+#     PG_CONF="/var/lib/postgresql/data/postgresql.conf"
+#     
+#     echo "postgresql.conf 파일에 pg_cron 설정 적용 중..."
+#     
+#     # shared_preload_libraries = 'pg_cron' 설정을 추가하거나 수정합니다.
+#     if [ -f "$PG_CONF" ]; then
+#         if grep -q "^shared_preload_libraries" "$PG_CONF"; then
+#             # shared_preload_libraries 라인이 있고, 그 값이 비어있지 않다면 pg_cron 추가
+#             if grep -q "^shared_preload_libraries = '\(.*[^']\)'" "$PG_CONF"; then
+#                 # 이미 pg_cron이 포함되어 있는지 확인하여 중복 추가 방지
+#                 if ! grep -q "shared_preload_libraries = '.*pg_cron.*'" "$PG_CONF"; then
+#                     sed -i "s|^shared_preload_libraries = '\(.*[^']\)'|shared_preload_libraries = '\1,pg_cron'|" "$PG_CONF"
+#                     echo "shared_preload_libraries에 pg_cron이 추가되었습니다."
+#                 else
+#                     echo "shared_preload_libraries에 이미 pg_cron이 포함되어 있습니다."
+#                 fi
+#             # shared_preload_libraries 라인이 있지만 값이 비어있다면 pg_cron으로 설정
+#             elif grep -q "^shared_preload_libraries = ''" "$PG_CONF"; then
+#                 sed -i "s|^shared_preload_libraries = ''|shared_preload_libraries = 'pg_cron'|" "$PG_CONF"
+#                 echo "shared_preload_libraries가 pg_cron으로 설정되었습니다."
+#             else
+#                 # shared_preload_libraries 라인이 있지만 예상치 못한 형식인 경우 (예: 주석 처리된 경우)
+#                 echo "경고: shared_preload_libraries 라인이 예상치 못한 형식입니다. 수동 확인이 필요할 수 있습니다."
+#                 echo "shared_preload_libraries = 'pg_cron'" >> "$PG_CONF" # 일단 추가
+#             fi
+#         else
+#             # shared_preload_libraries 라인이 없으면 새로 추가
+#             echo "shared_preload_libraries = 'pg_cron'" >> "$PG_CONF"
+#             echo "shared_preload_libraries 라인이 새로 추가되었습니다."
+#         fi
+#     
+#         # cron.database_name 설정 추가 또는 수정 (기존 라인이 있으면 업데이트, 없으면 추가)
+#         if grep -q "^cron.database_name" "$PG_CONF"; then
+#             sed -i "s|^cron.database_name = .*|cron.database_name = 'postgres'|" "$PG_CONF"
+#             echo "cron.database_name이 'postgres'로 업데이트되었습니다."
+#         else
+#             echo "cron.database_name = 'postgres'" >> "$PG_CONF"
+#             echo "cron.database_name이 새로 추가되었습니다."
+#         fi
+#     
+#         # cron.timezone 설정 추가 또는 수정 (기존 라인이 있으면 업데이트, 없으면 추가)
+#         if grep -q "^cron.timezone" "$PG_CONF"; then
+#             sed -i "s|^cron.timezone = .*|cron.timezone = 'Asia/Seoul'|" "$PG_CONF"
+#             echo "cron.timezone이 'Asia/Seoul'로 업데이트되었습니다."
+#         else
+#             echo "cron.timezone = 'Asia/Seoul'" >> "$PG_CONF"
+#             echo "cron.timezone이 새로 추가되었습니다."
+#         fi
+#     
+#     else
+#         echo "오류: $PG_CONF 파일을 찾을 수 없습니다. pg_cron 설정을 적용할 수 없습니다."
+#         exit 1
+#     fi
+#     
+#     echo "pg_cron 설정이 postgresql.conf에 성공적으로 적용되었습니다."
+#     pg_ctl -D /var/lib/postgresql/data restart
+#
+#
+##   -- 초기화 shell script --
+#
+#   $ touch pgsql/02_init.sql
+#   $ code pgsql/02_init.sql 
+#
+#     -- pg_cron 확장은 반드시 'postgres' 데이터베이스에 설치되어야 합니다.
+#     -- 그리고 서버 시작 시 shared_preload_libraries에 로드되어야 합니다.
+#     -- Docker entrypoint 스크립트는 일반적으로 POSTGRES_DB 환경 변수에 의해 생성된 데이터베이스에 연결되므로,
+#     -- pg_cron을 설치하기 위해서는 명시적으로 postgres DB로 전환해야 합니다.
+#     
+#     -- pg_cron 확장 생성
+#     -- pg_cron은 shared_preload_libraries에 설정되어 로드되면,
+#     -- CREATE EXTENSION 명령 시 PostgreSQL 내부적으로 pg_catalog 스키마에 필요한 객체를 배치합니다.
+#     -- 따라서 CREATE EXTENSION pg_cron; 뒤에 WITH SCHEMA를 지정하면 오류가 발생합니다.
+#     CREATE EXTENSION IF NOT EXISTS pg_cron;
+#     COMMENT ON EXTENSION pg_cron IS 'PostgreSQL용 간단한 cron 기반 스케줄러';
+#     
+#      -- User Create
+#      CREATE USER gitea WITH ENCRYPTED PASSWORD 'gitea';
+#      ALTER USER gitea with superuser;
+#      CREATE DATABASE gitea;
+#      GRANT ALL PRIVILEGES ON DATABASE gitea TO gitea;
+#     
+#      -- Set WAL and checkpoint configurations
+#      ALTER SYSTEM SET wal_level = 'replica';
+#      ALTER SYSTEM SET synchronous_commit = 'on';
+#      ALTER SYSTEM SET wal_buffers = '16MB';
+#      ALTER SYSTEM SET checkpoint_timeout = '5min';
+#      ALTER SYSTEM SET checkpoint_completion_target = '0.9';
+#      ALTER SYSTEM SET max_wal_size = '1GB';
+#      ALTER SYSTEM SET min_wal_size = '80MB';
+#      
+#      -- SSL configuration
+#      ALTER SYSTEM SET ssl = 'on';
+#      ALTER SYSTEM SET ssl_cert_file = '/etc/ssl/certs/server.crt';
+#      ALTER SYSTEM SET ssl_key_file = '/etc/ssl/certs/server.key';
+#      
+#      -- Reload configuration to apply changes
+#      SELECT pg_reload_conf();
+#
+#
+#
+### <<<-- pgadmin4 shell script -->>> 
+#
+#   $ touch pgadm/init.sh
+#   $ chmod 755 pgadm/init.sh
+#   $ code pgadm/init.sh
+#     #!/bin/bash
+#     set -e # Exit immediately if a command exits with a non-zero status
+#     set -u # Treat unset variables as an error when substituting.
+#     chown 5050:5050 /certs/server.key
+#     chmod 600 /certs/server.key
+#     chown 5050:5050 /certs/server.crt
+#     chmod 600 /certs/server.crt
+#
+### <<<-- gitea shell script -->>> 
+#
+#   $ touch gitea/init.sh
+#   $ chmod 755 gitea/init.sh
+#   $ code gitea/init.sh
+#     #!/bin/bash
+#     set -e
+#     set -u
+#     chown git:git /certs/server.key
+#     chmod 600 /certs/server.key
+#     chown git:git /certs/server.crt
+#     chmod 600 /certs/server.crt
+#
+#
+##   - 초기화 스크립트 실행 확인
+#     db 컨테이너 CLI로 접속 docker-entrypoint-initdb.d 폴더로 이동 init.sql 파일 존재 확인
+#
+# @ docker 환경변수 파일 생성
+#
+# @ docker compose - compose 환경변수 파일 생성 
+#   $ touch .env
+#   $ code .env
+#     # .env 파일 
+#     # --env-file 옵션을 주지 않으면 자동으로 사용됨
+#     # Postgresql
+#     POSTGRES_PORT=5432
+#     POSTGRES_USER=postgres
+#     # POSTGRES_PASSWORD=pgpass
+#     POSTGRES_DB=postgres
+#     # PgAdmin4
+#     PGADMIN_DEFAULT_EMAIL=pgadmin@pgadmin.org
+#     #PGADMIN_DEFAULT_PASSWORD=pgpass
+#     PGADMIN_PORT_EXT=15080
+#     PGADMIN_PORT_INT=80
+#     PGADMIN_PORT_SSL_EXT=15443
+#     PGADMIN_PORT_SSL_INT=443
+#
+#
+#   -- pgsql 컨테이너 환경변수 설정
+#   $ touch pgsql/.env
+#   $ echo GUMC_USER_VER=1.12 >> pgsql/.env
+#   -- pgadm 컨테이너 환경변수 설정
+#   $ touch pgadm/.env
+#   $ echo GUMC_USER_VER=1.12 >> pgadm/.env
+#   -- gitea 컨테이너 환경변수 설정
+#   $ touch gitea/.env
+#   $ echo GUMC_USER_VER=1.12 >> gitea/.env
+#
+#
+# @ docker compose - password 파일 생성
+#   -- pgsql 컨테이너 로그인 암호 설정
+#   $ touch pgsql/pass.txt
+#   $ echo pgpass >> pgsql/pass.txt
+#   -- pgadm 컨테이너 로그인 암호 설정
+#   $ touch pgadm/pass.txt
+#   $ echo pgpass >> pgadm/pass.txt
+#
+#
+# @ docker compose - 자체 서명 인증서 생성
+#   $ openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout ./pgsql/pgsql.key -out ./pgsql/pgsql.crt -subj "/C=KR/ST=Gyeonggi-do/L=Gwangju-si/O=gumc/CN=pgsql"
+#   $ openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout ./pgadm/pgadm.key -out ./pgadm/pgadm.crt -subj "/C=KR/ST=Gyeonggi-do/L=Gwangju-si/O=gumc/CN=pgadm"
+#   $ openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout ./gitea/gitea.key -out ./gitea/gitea.crt -subj "/C=KR/ST=Gyeonggi-do/L=Gwangju-si/O=gumc/CN=gitea"
+#
+#
+# @ docker compose - 자체 서명 인증서 사용자 및 그룹 설정
+#   $ sudo chown 5050:5050 ./pgadm/pgadm.key    // pgadmin4는 5050:5050으로 설정하게 문서화 되어 있음
+#   $ sudo chown 5050:5050 ./pgadm/pgadm.crt    // pgadmin4는 5050:5050으로 설정하게 문서화 되어 있음
+#
+#
+# @ docker compose 파일 생성
+#   $ touch docker-compose.yml
+#   $ code docker-compose.yml
+
+
+# version: "3.8"
+
+
+secrets:
+  pgsql-password:
+    file: ${PWD}/pgsql/pass.txt
+  pgadm-password:
+    file: ${PWD}/pgadm/pass.txt
+
+
+networks:
+  # bridge driver for the app_net
+  app-net:
+    driver: bridge
+    # external: false
+
+
+volumes:
+  pgsql-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/vol/pgsql
+  
+  pgadm-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/vol/pgadm
+
+  gitea-data:
+      driver: local
+      driver_opts:
+        type: none
+        o: bind
+        device: ${PWD}/vol/gitea/data
+
+  gitea-config:
+      driver: local
+      driver_opts:
+        type: none
+        o: bind
+        device: ${PWD}/vol/gitea/etc
+
+        
+services:
+  postgres:
+    container_name: pgsql
+    build:
+      context: ./pgsql
+      dockerfile: Dockerfile
+    restart: always
+    volumes:
+      - pgsql-data:/var/lib/postgresql/data
+      #- ./pgsql/pgsql.crt:/etc/ssl/certs/server.crt                                          -> Dockerfile로 이전
+      #- ./pgsql/pgsql.key:/etc/ssl/certs/server.key                                          -> Dockerfile로 이전
+      #- ./pgsql/custom-entrypoint.sh:/custom-entrypoint.sh                                   -> Dockerfile로 이전
+      #- ./pgsql/01_set_config.sh:/docker-entrypoint-initdb.d/01_set_config.sh                -> Dockerfile로 이전
+      #- ./pgsql/02_set_config.sql:/docker-entrypoint-initdb.d/02_set_config.sql              -> Dockerfile로 이전
+      #- ./pgsql/03_init-extensions.sql:/docker-entrypoint-initdb.d/03_init-extensions.sql    -> Dockerfile로 이전
+      # - ./pgsql/init.sh:/docker-entrypoint-initdb.d/init.sh
+      # - ./pgsql:/docker-entrypoint-initdb.d # 디렉토리 전체 복사
+      # - /etc/localtime:/etc/localtime:ro
+    # entrypoint: ["/custom-entrypoint.sh"]                                                   -> Dockerfile로 이전
+    networks:
+      - app-net
+    ports:
+      # Map host port 5432 to container port 5432
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+    secrets:
+      - pgsql-password
+    environment:
+      TZ: Asia/Seoul
+      POSTGRES_PASSWORD_FILE: /run/secrets/pgsql-password
+      POSTGRES_USER: ${POSTGRES_USER}
+      # POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      # - POSTGRES_HOST_AUTH_METHOD: trust # allow all connections without a password. This is *not* recommended for prod
+    env_file: # container 내부 환경 변수 설정 파일
+      - ./pgsql/.env
+#    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+#    entrypoint: 
+#      - /bin/sh -c "chown postgres:postgres /etc/ssl/certs/server.key && chmod 600 /etc/ssl/certs/server.key && exec docker-entrypoint.sh postgres"
+    healthcheck:
+      # docker inspect --format "{{json .State.Health }}" pgsql | jq -> healthcheck log view
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+
+  pgadmin4:
+    image: dpage/pgadmin4:lastest
+    restart: always
+    container_name: pgadm
+    volumes:
+      # Mount a volume to persist pgAdmin 4 data
+      - pgadm-data:/var/lib/pgadmin
+      - ./pgadm/pgadm.crt:/certs/server.cert
+      - ./pgadm/pgadm.key:/certs/server.key
+      - ./pgadm/init.sh:/docker-entrypoint-initdb.d/init.sh
+      #- /etc/localtime:/etc/localtime:ro
+    networks:
+      - app-net
+    ports:
+      # Map host port 5050 to container port 15080:80, 15443:5443
+      - "${PGADMIN_PORT_EXT}:${PGADMIN_PORT_INT}"
+      - "${PGADMIN_PORT_SSL_EXT}:${PGADMIN_PORT_SSL_INT}"
+    secrets:
+      - pgadm-password
+    environment:
+      TZ: Asia/Seoul
+      PGADMIN_DEFAULT_PASSWORD_FILE: /run/secrets/pgadm-password
+      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_DEFAULT_EMAIL}" 
+      # PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_DEFAULT_PASSWORD}" 
+      PGADMIN_ENABLE_TLS: 1
+    env_file: # container 내부 환경 변수 설정 파일
+      - ./pgadm/.env
+    depends_on:
+      # Ensure that this service starts after 'postgres'
+      postgres:
+        condition: service_healthy
+
+
+  gitea:
+    image: gitea/gitea:lastest
+    container_name: gitea
+    restart: always
+    volumes:
+      - gitea-data:/data
+      # - gitea-config:/etc/gitea  -- 미사용
+      # OPTIONAL. your custom generated certs from local folder mysite.com
+      - ./gitea/gitea.crt:/certs/server.cert
+      - ./gitea/gitea.key:/certs/server.key
+      - ./gitea/init.sh:/docker-entrypoint-initdb.d/init.sh
+      #- /etc/timezone:/etc/timezone:ro
+      #- /etc/localtime:/etc/localtime:ro
+    networks:
+      - app-net
+    ports:
+      #- "13443:443"
+      - "3000:3000"
+      - "222:22"
+    environment:
+      TZ: Asia/Seoul
+      USER_UID: 1000
+      USER_GID: 1000
+      #GITEA__[SECTION_NAME]__[VARIABLE]: value
+      # database
+      GITEA__database__DB_TYPE: postgres
+      GITEA__database__HOST: pgsql:5432
+      GITEA__database__NAME: gitea
+      GITEA__database__USER: gitea
+      GITEA__database__PASSWD: gitea
+
+      # server
+      #GITEA__server__DOMAIN: localhost 기본값은 미설정
+      #GITEA__server__SSH_DOMAIN: localhost 기본값은 미설정
+      GITEA__server__HTTP_PORT: 3000
+      #GITEA__server__REDIRECT_OTHER_PORT: true
+      GITEA__server__PROTOCOL: https
+      #GITEA__server__ROOT_URL: 기본값은 미설정
+
+      # COMMENT OUT LETSENCRYPT VALUES IF YOU HAVE OWN CERTS FILES!!
+      #GITEA__server__ENABLE_ACME: true
+      #GITEA__server__ACME_ACCEPTTOS: true
+      #GITEA__server__ACME_DIRECTORY: https
+      #GITEA__server__ACME_EMAIL: my@email.com
+      
+      # OPTIONAL. OWN CERTS FILES IF YOU HAVE THE ONES
+      GITEA__server__CERT_FILE: /certs/server.cert
+      GITEA__server__KEY_FILE: /certs/server.key
+
+    # environment: app.ini
+    #  - GITEA__security__SECRET_KEY=[value returned by generate secret SECRET_KEY]
+    #  - GITEA__security__INTERNAL_TOKEN=[value returned by generate secret INTERNAL_TOKEN]
+    #  - GITEA__mailer__ENABLED=true
+    #  - GITEA__mailer__FROM=${GITEA__mailer__FROM:?GITEA__mailer__FROM not set}
+    #  - GITEA__mailer__PROTOCOL=smtps
+    #  - GITEA__mailer__SMTP_ADDR=${GITEA__mailer__SMTP_ADDR:?GITEA__mailer__SMTP_ADDR not set}
+    #  - GITEA__mailer__SMTP_PORT=${GITEA__mailer__SMTP_PORT:?GITEA__mailer__SMTP_PORT not set}
+    #  - GITEA__mailer__USER=${GITEA__mailer__USER:-apikey}
+    #  - GITEA__mailer__PASSWD="""${GITEA__mailer__PASSWD:?GITEA__mailer__PASSWD not set}""""
+
+    env_file: # container 내부 환경 변수 설정 파일
+      - ./gitea/.env
+    depends_on:
+      # Ensure that this service starts after 'postgres'
+      postgres:
+        condition: service_healthy
+
+
+====================================================================
+  docker compose 실행 및 재실행
+====================================================================
+# @ pass init "이메일 주소" 선행작업
+#   $ sudo apt install pass
+#   $ gpg --generate-key
+# @ docker compose clean restart
+#   $ docker compose down
+#   $ docker rm -f $(docker ps -a -q)  # => down 확인
+#   $ docker volume rm $(docker volume ls -q)
+#   $ docker rmi $(docker images -q)
+#   $ sudo rm -rf vol/pgsql vol/pgadm vol/gitea/etc vol/gitea/data
+#   $ mkdir -p vol/pgsql vol/pgadm vol/gitea/etc vol/gitea/data
+#   $ pass init "foxtreekr@naver.com"
+#   $ docker compose up -d
+#   
+# @ docker container state check
+#   $ docker exec -it pgsql bash
+#   $ docker logs -f --tail 10 pgsql
+#   $ docker inspect --format "{{json .State.Health }}" pgsql | jq
+#   $ docker inspect --format "{{json .State.Health }}" $(docker compose ps -q postgres) | jq
+#   $ docker exec -it pgsql bash
+#   Sroot@1a6eb48b7107:/# psql -U postgres -p 5432 -h localhost
+# == 컨테이너 네트워크 확인 == 
+#  $ docker inspect gitea | grep IPAddress
+#              "SecondaryIPAddresses": null,
+#              "IPAddress": "",
+#                      "IPAddress": "172.18.0.2",
+#
+# == pgsql ssl connection check == 
+#  $ docker exec -it pgsql bash
+#    root@1a6eb48b7107:/# psql -U postgres -p 5432 -h localhost
+#    psql (15.8 (Debian 15.8-1.pgdg120+1))
+#    SSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384, compression: off)
+#    Type "help" for help.
+#
+#  postgres=#
+#
+#
+# == gitea 접속 테스트 == 
+#  * 웹 브라우저에서 테스트
+#  1. https://{ip}:3000 접속
+#  2. 에러가 발생한다면, docker-compose logs -f 명령어를 통해서 디버깅
+#  3. 초기 설정 화면 확인 후 아래에 설치하기 누르면 완료
+#  4. 계정 생성
+#  5. repository 생성
+#  6. console에서 git clone 실시
+#    - 사설인증서인 경우 에러가 발생하므로 다음과 같이 입력한다.
+#      git -c http.sslVerify=false clone https://localhost:3000/foxtreekr/gitea-test-repo.git
+#
+#  7. console에서 ssh git clone 실시 
+#    - ssh public key를 gitea에 등록후 다음과 같이 입력한다
+#      git clone ssh://git@localhost:15022/foxtreekr/gitea-test-repo.git
