@@ -5,10 +5,10 @@
  */
 
 // 1. 메인 뷰 (페이지 라우터에서 사용)
-export { SpaceManagementView } from "@loc/ui/views/space-management-view";
+export { SpaceManagementView } from "@/(domain)/loc/ui/views/space-management-view";
 
 // 2. 공용 컴포넌트 (다른 도메인에서 장소 선택 팝업이 필요할 때 사용)
-export { SpaceSelector } from "@loc/ui/dialogs/space-selector-dialog";
+export { SpaceSelector } from "@/(domain)/loc/ui/dialogs/space-selector-dialog";
 
 // 3. 타입 정의 (다른 도메인에서 Loc 데이터 타입이 필요할 때 사용)
 // 예: import { LocData } from "@/domain/loc";

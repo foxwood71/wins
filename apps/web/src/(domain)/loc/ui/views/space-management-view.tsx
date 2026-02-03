@@ -38,9 +38,9 @@ import {
 import { NavTree, TreeNode } from "@/shared/components/navigation/nav-tree";
 import { NavListItem } from "@/shared/components/navigation/nav-list-item";
 
-import { useSpaceLogic } from "@loc/hooks/use-space-logic";
-import { LocData, Space, Facility } from "@loc/model/types";
-import { SpaceDetail } from "@loc/ui/components/details/space-detail";
+import { useSpaceLogic } from "@/(domain)/loc/hooks/use-space-logic";
+import { LocData, Space, Facility } from "@/(domain)/loc/model/types";
+import { SpaceDetail } from "@/(domain)/loc/ui/components/details/space-detail";
 
 export function SpaceManagementView() {
   const { state, actions } = useSpaceLogic();

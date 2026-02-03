@@ -29,10 +29,10 @@ import {
   SpaceFunction,
   SpaceType,
   FacilityCategory,
-} from "@loc/model/types";
-import { FunctionManagerDialog } from "@loc/ui/dialogs/function-manager-dialog";
-import { TypeManagerDialog } from "@loc/ui/dialogs/type-manager-dialog";
-import { FacilityCategoryDialog } from "@loc/ui/dialogs/facility-category-dialog";
+} from "@/(domain)/loc/model/types";
+import { FunctionManagerDialog } from "@/(domain)/loc/ui/dialogs/function-manager-dialog";
+import { TypeManagerDialog } from "@/(domain)/loc/ui/dialogs/type-manager-dialog";
+import { FacilityCategoryDialog } from "@/(domain)/loc/ui/dialogs/facility-category-dialog";
 
 // 1. FacilityDetail
 interface FacilityDetailProps {

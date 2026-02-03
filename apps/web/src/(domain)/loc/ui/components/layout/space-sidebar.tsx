@@ -22,7 +22,7 @@ import {
 } from "@/shared/components/layout/app-content";
 import { NavTree, TreeNode } from "@/shared/components/navigation/nav-tree";
 import { NavListItem } from "@/shared/components/navigation/nav-list-item";
-import { LocData, Space, Facility } from "@loc/model/types";
+import { LocData, Space, Facility } from "@/(domain)/loc/model/types";
 
 interface SpaceSidebarProps {
   selectedKey: string;

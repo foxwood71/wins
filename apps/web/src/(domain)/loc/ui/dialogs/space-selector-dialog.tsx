@@ -22,10 +22,10 @@ import { Input } from "@/shared/components/ui/input";
 import { NavTree, TreeNode } from "@/shared/components/navigation/nav-tree";
 
 // ✨ [변경 1] 훅 경로 확인 (hooks 폴더로 이동했으므로)
-import { useSpaceTreeNodes } from "@loc/hooks/use-space-tree";
-import { LocData, Space, Facility } from "@loc/model/types";
+import { useSpaceTreeNodes } from "@/(domain)/loc/hooks/use-space-tree";
+import { LocData, Space, Facility } from "@/(domain)/loc/model/types";
 // ✨ [변경 2] Mock 데이터 가져오기 (훅에 넘겨주기 위해)
-import { FACILITIES, SPACES } from "@loc/data/loc-mock";
+import { FACILITIES, SPACES } from "@/(domain)/loc/data/loc-mock";
 
 interface SpaceSelectorProps {
   value?: number;

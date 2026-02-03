@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { Package2 } from "lucide-react";
-import { LoginForm } from "@/domain/auth/ui/login-form";
+import { LoginForm } from "@/(domain)/auth/ui/login-form";
 
 export const metadata: Metadata = {
   title: "Login - WINS",

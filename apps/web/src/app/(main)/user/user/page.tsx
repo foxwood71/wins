@@ -1,4 +1,4 @@
-import { UserManagementView } from "@/domain/user/ui/user-management-view";
+import { UserManagementView } from "@/(domain)/user/ui/user-management-view";
 
 /**
  * 시스템 관리 > 사용자 관리 페이지

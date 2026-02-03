@@ -12,9 +12,13 @@ import {
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { Switch } from "@/shared/components/ui/switch";
-import { Facility, Space } from "@loc/model/types";
-import { SPACES, SPACE_TYPES, SPACE_FUNCTIONS } from "@loc/data/loc-mock";
-import { generateNextCode } from "@loc/utils/space-code-gen";
+import { Facility, Space } from "@/(domain)/loc/model/types";
+import {
+  SPACES,
+  SPACE_TYPES,
+  SPACE_FUNCTIONS,
+} from "@/(domain)/loc/data/loc-mock";
+import { generateNextCode } from "@/(domain)/loc/utils/space-code-gen";
 
 // --- [시설 등록 폼] ---
 export function FacilityForm({
