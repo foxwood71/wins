@@ -1,4 +1,4 @@
-import { DeptManagementView } from "@/(domain)/user/ui/dept-management-view";
+import { DeptManagementView } from "@/domain/user/ui/dept-management-view";
 
 /**
  * 시스템 관리 > 부서 관리 페이지
