@@ -14,6 +14,8 @@ import {
   Trash2,
   PlusCircle,
   Search,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 
 import { Input } from "@/shared/components/ui/input";

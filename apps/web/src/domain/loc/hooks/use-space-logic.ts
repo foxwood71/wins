@@ -71,6 +71,7 @@ export function useSpaceLogic() {
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [isAllExpanded, setIsAllExpanded] = useState(false);
 
   // 2. 데이터 로딩
   const loadData = useCallback(async () => {
@@ -198,9 +199,37 @@ export function useSpaceLogic() {
     setIsEditing(false);
   }, []);
 
-  const handleToggle = useCallback((id: string) => {
-    setOpenItems((prev) => ({ ...prev, [id]: !prev[id] }));
-  }, []);
+  // const handleToggle = useCallback((id: string) => {
+  //   setOpenItems((prev) => ({ ...prev, [id]: !prev[id] }));
+  // }, []);
+  const handleToggleAll = useCallback(() => {
+    setIsAllExpanded((prev) => {
+      const nextState = !prev; // true <-> false 반전
+
+      if (nextState) {
+        // [펼치기 로직]
+        const allOpen: Record<string, boolean> = {};
+        treeNodes.forEach((node) => {
+          allOpen[String(node.id)] = true;
+          // 자식 노드들도 재귀적으로 찾아야 완벽하지만, 1차적으로는 이렇게
+          if (node.children) {
+            const openChildren = (nodes: any[]) => {
+              nodes.forEach((child) => {
+                allOpen[String(child.id)] = true;
+                if (child.children) openChildren(child.children);
+              });
+            };
+            openChildren(node.children);
+          }
+        });
+        setOpenItems(allOpen);
+      } else {
+        // [접기 로직]
+        setOpenItems({});
+      }
+      return nextState; // 상태 업데이트
+    });
+  }, [treeNodes]);
 
   const handleSaveFacility = async (updated: Facility) => {
     try {
@@ -294,6 +323,7 @@ export function useSpaceLogic() {
       treeNodes,
       selectedKey,
       openItems,
+      isAllExpanded,
       searchTerm,
       isEditing,
       isLoading,
@@ -309,7 +339,7 @@ export function useSpaceLogic() {
       setSearchTerm,
       setIsEditing,
       handleSelectNode,
-      handleToggle,
+      handleToggleAll,
       setOpenItems,
       handleSaveFacility,
       handleSaveSpace,
