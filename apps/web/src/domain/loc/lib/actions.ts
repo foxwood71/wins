@@ -1,9 +1,10 @@
+// location domain api program
 "use server";
 
 import { db } from "@/shared/lib/db";
-import { LocData, Facility, Space, SqlParam } from "@/loc/model/types";
+import { Facility, Space, CreateLocationDto } from "@/loc/model/types";
 
-// DB 에러 타입 정의 (PostgresError 형태)
+// DB 에러 타입 정의
 interface PostgresError extends Error {
   code?: string;
 }
@@ -13,24 +14,27 @@ interface PostgresError extends Error {
 // =============================================================================
 
 /**
- * 시설/공간 전체 리스트 조회
- * 반환 타입: Promise<LocData[]> (any[] 아님)
+ * 시설과 공간을 모두 가져와서 하나의 배열로 반환합니다.
+ * 반환 타입: (Facility | Space)[]
  */
-export async function getLocationList(
-  parentId: number | null = null, // 사용되지 않더라도 시그니처 유지
-): Promise<LocData[]> {
-  // 1. 시설(Facilities) 조회
+export async function getLocationList(): Promise<(Facility | Space)[]> {
+  // 1. 시설(Facilities) 조회 쿼리
+  // - type: 'facility'로 고정
+  // - parent_id: NULL로 고정 (시설은 부모가 없음)
   const facilitiesQuery = `
     SELECT 
       f.id, 
       f.name, 
       f.code, 
+      f.address, 
       NULL::int as parent_id, 
       'facility' as type,
       f.category_id,
       f.description,
       f.sort_order,
       f.is_active,
+      f.created_at, 
+      f.updated_at,
       json_build_object(
         'id', c.id, 
         'name', c.name, 
@@ -42,7 +46,8 @@ export async function getLocationList(
     ORDER BY f.sort_order ASC, f.id ASC
   `;
 
-  // 2. 공간(Spaces) 조회
+  // 2. 공간(Spaces) 조회 쿼리
+  // - type: 'space'로 고정
   const spacesQuery = `
     SELECT 
       s.id, 
@@ -58,6 +63,8 @@ export async function getLocationList(
       s.description,
       s.sort_order,
       s.is_active,
+      s.created_at,
+      s.updated_at,
       json_build_object(
         'id', t.id, 
         'name', t.name, 
@@ -76,27 +83,21 @@ export async function getLocationList(
   `;
 
   try {
-    // 제네릭을 사용하여 결과 타입을 명시 (Facility[], Space[])
+    // 두 쿼리를 병렬로 실행
     const [facilitiesRes, spacesRes] = await Promise.all([
       db.query<Facility>(facilitiesQuery),
       db.query<Space>(spacesQuery),
     ]);
 
-    // 타입 단언 없이도 LocData[] 호환됨
-    const result: LocData[] = [...facilitiesRes.rows, ...spacesRes.rows];
-
-    // 성공 로그
-    console.log(
-      `✅ DB 조회 성공: 시설 ${facilitiesRes.rowCount}개, 공간 ${spacesRes.rowCount}개`,
-    );
+    // ✨ [핵심] 두 배열을 합칠 때 타입을 (Facility | Space)[]로 명시
+    const result: (Facility | Space)[] = [
+      ...facilitiesRes.rows,
+      ...spacesRes.rows,
+    ];
 
     return result;
   } catch (error: unknown) {
-    // 🚨 여기가 핵심입니다! 터미널에 빨간색으로 에러를 찍어줍니다.
-    console.error("\n========================================");
-    console.error("🔥 [DB 연결 실패] 진짜 에러 원인:");
-    console.error(error);
-    console.error("========================================\n");
+    console.error("🔥 [DB 조회 실패]:", error);
     throw new Error("데이터 목록을 불러오지 못했습니다.");
   }
 }
@@ -108,16 +109,19 @@ export async function getLocationList(
 export async function getLocationById(
   id: number,
   type: "facility" | "space",
-): Promise<LocData | null> {
-  let query = "";
-
-  // 쿼리 분기
+): Promise<Facility | Space | null> {
   if (type === "facility") {
-    query = "SELECT *, 'facility' as type FROM loc.facilities WHERE id = $1";
+    const query = `
+      SELECT *, 'facility' as type, NULL::int as parent_id
+      FROM loc.facilities WHERE id = $1
+    `;
     const res = await db.query<Facility>(query, [id]);
     return res.rows[0] ?? null;
   } else {
-    query = "SELECT *, 'space' as type FROM loc.spaces WHERE id = $1";
+    const query = `
+      SELECT *, 'space' as type 
+      FROM loc.spaces WHERE id = $1
+    `;
     const res = await db.query<Space>(query, [id]);
     return res.rows[0] ?? null;
   }
@@ -127,78 +131,55 @@ export async function getLocationById(
 // 3. 생성 로직 (Create)
 // =============================================================================
 
-// 생성 시 필요한 파라미터 타입 정의 (any 제거를 위해 명시)
-interface CreateLocationParams {
-  name: string;
-  code?: string;
-  type?: string; // 'facility' | 'space'
-  parentId?: number | null;
-
-  // 추가 필드
-  facility_id?: number;
-  category_id?: number;
-  space_type_id?: number;
-  space_function_id?: number;
-  description?: string;
-  area_size?: number;
-  is_restricted?: boolean;
-  latitude?: number;
-  longitude?: number;
-}
-
 export async function createLocation(
-  data: CreateLocationParams,
-): Promise<LocData> {
+  data: CreateLocationDto,
+): Promise<Facility | Space> {
   const {
     name,
     code,
     type,
-    parentId,
+    parent_id,
     facility_id,
     category_id,
+    address,
     space_type_id,
     space_function_id,
     description,
     area_size,
     is_restricted,
-    latitude,
-    longitude,
   } = data;
 
-  let query = "";
-  let params: SqlParam[] = [];
-
-  // 코드 자동 생성 로직
   const finalCode =
     code || (type === "facility" ? `FAC-${Date.now()}` : `SPC-${Date.now()}`);
 
   try {
     // [Case A] 시설 생성
-    if (type === "facility" || (!parentId && !facility_id)) {
-      query = `
+    // type이 facility이거나, 부모 정보(parentId, facility_id)가 모두 없는 경우
+    if (type === "facility" || (!parent_id && !facility_id)) {
+      const query = `
         INSERT INTO loc.facilities (
-            name, code, category_id, description, latitude, longitude, is_active
+            name, code, category_id, address, description, is_active
         )
-        VALUES ($1, $2, $3, $4, $5, $6, true)
-        RETURNING *, 'facility' as type
+        VALUES ($1, $2, $3, $4, $5, true)
+        RETURNING *, 'facility' as type, NULL::int as parent_id
       `;
-      params = [
+      const params = [
         name,
         finalCode,
         category_id || null,
+        address || null,
         description || null,
-        latitude || null,
-        longitude || null,
       ];
 
       const res = await db.query<Facility>(query, params);
       if (!res.rows[0]) throw new Error("시설 생성 실패");
+
       return res.rows[0];
     }
 
     // [Case B] 공간 생성
     else {
-      query = `
+      const query = `
         INSERT INTO loc.spaces (
           name, code, facility_id, parent_id, 
           space_type_id, space_function_id, 
@@ -208,14 +189,14 @@ export async function createLocation(
         RETURNING *, 'space' as type
       `;
 
-      // 공간은 facility_id가 필수지만, 로직상 없을 경우 에러 처리 필요
-      const safeFacilityId = facility_id ?? 0; // 혹은 throw Error
+      // 공간은 facility_id가 필수이므로 없으면 0(또는 에러) 처리
+      const safeFacilityId = facility_id ?? 0;
 
-      params = [
+      const params = [
         name,
         finalCode,
         safeFacilityId,
-        parentId || null,
+        parent_id || null,
         space_type_id || null,
         space_function_id || null,
         area_size || 0,
@@ -229,12 +210,8 @@ export async function createLocation(
     }
   } catch (error: unknown) {
     console.error("Database Error in createLocation:", error);
-
-    // error를 안전하게 타입 좁히기 (Type Narrowing)
-    if (isPostgresError(error)) {
-      if (error.code === "23505") {
-        throw new Error("이미 존재하는 코드입니다.");
-      }
+    if (isPostgresError(error) && error.code === "23505") {
+      throw new Error("이미 존재하는 코드입니다.");
     }
     throw error;
   }
@@ -249,6 +226,7 @@ export async function deleteLocation(
   type: "facility" | "space",
 ): Promise<void> {
   let query = "";
+  // 시설/공간은 별도 테이블이므로 반드시 type 분기 필요
   if (type === "facility") {
     query = "DELETE FROM loc.facilities WHERE id = $1";
   } else {
@@ -257,9 +235,7 @@ export async function deleteLocation(
   await db.query(query, [id]);
 }
 
-// -----------------------------------------------------------------------------
-// Helper: Error Type Guard
-// -----------------------------------------------------------------------------
+// Error Guard
 function isPostgresError(error: unknown): error is PostgresError {
   return typeof error === "object" && error !== null && "code" in error;
 }

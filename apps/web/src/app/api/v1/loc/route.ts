@@ -1,29 +1,21 @@
 import { NextResponse } from "next/server";
 import * as LocService from "@/loc/lib/actions";
 
-// 에러 메시지 추출 헬퍼
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return String(error);
 }
 
-// ----------------------------------------------------------------------
-// GET: 목록 조회
-// ----------------------------------------------------------------------
+// =============================================================================
+// GET: 목록 조회 (Fetch All)
+// =============================================================================
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const parentIdParam = searchParams.get("parentId");
+    // 🟢 [수정] actions.ts의 getLocationList()는 이제 인자를 받지 않습니다.
+    // 전체 데이터를 한 번에 가져오므로 파라미터 파싱 로직이 필요 없습니다.
 
-    // "null" 문자열이거나 빈 값이면 null, 아니면 숫자 변환
-    const parentId =
-      parentIdParam && parentIdParam !== "null" ? Number(parentIdParam) : null;
+    const data = await LocService.getLocationList();
 
-    if (parentId !== null && isNaN(parentId)) {
-      return NextResponse.json({ error: "Invalid parentId" }, { status: 400 });
-    }
-
-    const data = await LocService.getLocationList(parentId);
     return NextResponse.json(data);
   } catch (error: unknown) {
     return NextResponse.json(
@@ -33,30 +25,24 @@ export async function GET(request: Request) {
   }
 }
 
-// ----------------------------------------------------------------------
-// POST: 생성 (시설 또는 공간)
-// ----------------------------------------------------------------------
+// =============================================================================
+// POST: 생성
+// =============================================================================
 export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // 필수값 검증
-    if (!body.name || typeof body.name !== "string") {
-      return NextResponse.json(
-        { error: "유효하지 않은 명칭입니다." },
-        { status: 400 },
-      );
+    if (!body.name) {
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    // actions.ts의 createLocation 함수 호출
-    // (actions 내부에서 type에 따라 facilities/spaces 테이블 분기 처리됨)
     const newItem = await LocService.createLocation({
       name: body.name,
       code: body.code,
-      type: body.type, // 'facility' | 'space'
-      parentId: body.parentId,
+      type: body.type,
+      // 프론트에서 parent_id로 보내든 parentId로 보내든 처리
+      parent_id: body.parent_id ?? body.parentId,
 
-      // 추가 필드들 전달
       facility_id: body.facility_id,
       category_id: body.category_id,
       space_type_id: body.space_type_id,
@@ -64,8 +50,7 @@ export async function POST(request: Request) {
       description: body.description,
       area_size: body.area_size,
       is_restricted: body.is_restricted,
-      latitude: body.latitude,
-      longitude: body.longitude,
+      address: body.address,
     });
 
     return NextResponse.json(newItem);
@@ -77,23 +62,18 @@ export async function POST(request: Request) {
   }
 }
 
-// ----------------------------------------------------------------------
-// DELETE: 삭제 (신규 추가됨)
-// ----------------------------------------------------------------------
+// =============================================================================
+// DELETE: 삭제
+// =============================================================================
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const idParam = searchParams.get("id");
-    const typeParam = searchParams.get("type"); // 'facility' 또는 'space' 필수
+    const typeParam = searchParams.get("type");
 
-    if (!idParam || isNaN(Number(idParam))) {
-      return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
-    }
-
-    // 테이블을 구분하기 위해 type이 반드시 필요함
-    if (!typeParam || (typeParam !== "facility" && typeParam !== "space")) {
+    if (!idParam || !typeParam) {
       return NextResponse.json(
-        { error: "Invalid Type (facility or space required)" },
+        { error: "ID and Type required" },
         { status: 400 },
       );
     }

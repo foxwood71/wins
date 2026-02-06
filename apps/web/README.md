@@ -36,3 +36,13 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
 Gái Gọi Việt Nam Tại Hàn Quốc
+
+### 🏗️ New Architecture Blueprint (설계도)
+
+# 우리가 만들 구조는 다음과 같습니다
+
+1. Data Layer (useLocationLogic): DB 데이터를 가져와서 라이브러리가 좋아하는 TreeDataItem[] 포맷으로 예쁘게 포장해서 내보냅니다.
+
+2. UI Layer (LocationSidebar): 로직 고민 없이 데이터를 받아서 <TreeView />에 던져주기만 합니다.
+
+3. Integration (LocationManagementView): 이 둘을 연결합니다.

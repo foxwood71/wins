@@ -1,2 +1,2 @@
-export * from "@/loc/hooks/use-space-logic";
-export * from "@/loc/hooks/use-space-tree";
+export * from "@/loc/hooks/use-location-management";
+export * from "@/loc/hooks/use-location-tree";
