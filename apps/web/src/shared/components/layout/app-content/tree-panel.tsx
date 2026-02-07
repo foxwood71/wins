@@ -1,68 +1,191 @@
 "use client";
 
-import React from "react";
+import React, {
+  useMemo,
+  useRef,
+  useState,
+  useEffect,
+  createContext,
+  useContext,
+} from "react";
+import { Tree, NodeRendererProps } from "react-arborist";
 import {
   Maximize2,
-  Minimize2,
   Plus,
+  Pencil, // 🟢 편집 아이콘 추가
   Trash2,
   Folder,
   FolderOpen,
   File,
+  ChevronRight,
+  ChevronDown,
+  Factory,
+  Box,
 } from "lucide-react";
 
 import { cn } from "@/shared/lib/utils";
-import { Badge } from "@/shared/components/ui/badge";
-import { Button } from "@/shared/components/ui/button";
+import { Badge, badgeVariants } from "@/shared/components/ui/badge";
 import {
   SidePanel,
   ToolbarButton,
 } from "@/shared/components/layout/app-content";
-
-import {
-  TreeView,
-  TreeDataItem,
-  TreeRenderItemParams,
-} from "@/shared/components/ui/tree-view";
+import { VariantProps } from "class-variance-authority";
 
 // ----------------------------------------------------------------------
-// Types
+// 1. 타입 정의 (Any 0% 달성)
 // ----------------------------------------------------------------------
-
-export interface TreePanelProps {
-  // 1. 기본 데이터
-  title?: string;
-  data: TreeDataItem[];
-  selectedId: string | null;
-  className?: string;
-
-  // 2. 검색 및 필터
-  onSearch?: (term: string) => void;
-
-  // 3. 트리 동작
-  onSelect: (nodeId: string) => void;
-  onToggleExpand?: () => void;
-  isAllExpanded?: boolean;
-
-  // 4. CRUD 액션 (툴바)
-  onCreate?: () => void;
-  onDelete?: () => void;
-  disableDelete?: boolean;
-
-  // 5. 커스텀 렌더링 (옵션)
-  /** 노드 우측에 표시할 배지 정보를 반환하는 함수 */
-  // 🔴 [수정] BadgeProps["variant"] 대신 React.ComponentProps<typeof Badge>["variant"] 사용
-  getItemBadge?: (item: TreeDataItem) => {
-    label: string;
-    variant?: React.ComponentProps<typeof Badge>["variant"];
-    className?: string;
-  } | null;
-
-  /** 노드 호버 시 우측에 나타날 액션 버튼들을 반환하는 함수 */
-  renderItemActions?: (item: TreeDataItem) => React.ReactNode;
+export interface TreeNodeData {
+  id: string;
+  name: string;
+  children?: TreeNodeData[];
+  data?: {
+    type?: "facility" | "space" | string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
 }
 
-// ... (이하 코드는 동일합니다)
+type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
+
+interface BadgeConfig {
+  label: string;
+  variant?: BadgeVariant;
+  className?: string;
+}
+
+interface TreePanelContextValue {
+  getItemBadge?: (item: TreeNodeData) => BadgeConfig | null;
+  getItemIcon?: (
+    item: TreeNodeData,
+    isOpen: boolean,
+  ) => React.ElementType | null;
+  renderItemActions?: (item: TreeNodeData) => React.ReactNode;
+}
+
+const TreePanelContext = createContext<TreePanelContextValue | null>(null);
+
+// ----------------------------------------------------------------------
+// 2. NodeRenderer (아이콘 및 액션 버튼 복구)
+// ----------------------------------------------------------------------
+const NodeRenderer = ({
+  node,
+  style,
+  dragHandle,
+}: NodeRendererProps<TreeNodeData>) => {
+  const item = node.data;
+  const isSelected = node.isSelected;
+  const isOpen = node.isOpen;
+  const hasChildren = !node.isLeaf;
+
+  const context = useContext(TreePanelContext);
+  const { getItemIcon, getItemBadge, renderItemActions } = context || {};
+
+  // 아이콘 결정
+  let resolvedIcon: React.ElementType | null = getItemIcon
+    ? getItemIcon(item, isOpen)
+    : null;
+  if (!resolvedIcon) {
+    const type = item.data?.type;
+    if (type === "facility") resolvedIcon = Factory;
+    else if (type === "space")
+      resolvedIcon = hasChildren ? (isOpen ? FolderOpen : Folder) : Box;
+    else resolvedIcon = hasChildren ? (isOpen ? FolderOpen : Folder) : File;
+  }
+
+  const badge = getItemBadge?.(item);
+
+  return (
+    <div style={style} className="pr-2">
+      <div
+        ref={dragHandle}
+        onClick={(e) => node.handleClick(e)}
+        className={cn(
+          "flex items-center w-full h-full cursor-pointer px-2 rounded-sm transition-colors outline-none group", // 🟢 group 클래스 유지
+          isSelected
+            ? "bg-indigo-50 text-indigo-700"
+            : "hover:bg-slate-50/80 text-slate-600",
+        )}
+      >
+        <div
+          className="flex items-center justify-center w-6 h-6 shrink-0 text-slate-400"
+          onClick={(e) => {
+            e.stopPropagation();
+            node.toggle();
+          }}
+        >
+          {hasChildren ? (
+            isOpen ? (
+              <ChevronDown className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5" />
+            )
+          ) : (
+            <div className="w-3.5 h-3.5" />
+          )}
+        </div>
+
+        <div className="flex items-center flex-1 min-w-0 py-1 gap-2">
+          {resolvedIcon &&
+            React.createElement(resolvedIcon, {
+              className: cn(
+                "h-4 w-4 shrink-0",
+                isSelected ? "text-indigo-600" : "text-slate-400",
+              ),
+            })}
+
+          <span className="truncate text-sm font-medium flex-1">
+            {item.name}
+          </span>
+
+          {badge && (
+            <Badge
+              variant={badge.variant || "outline"}
+              className={cn(
+                "text-[10px] px-1.5 h-4 font-normal shrink-0",
+                badge.className,
+              )}
+            >
+              {badge.label}
+            </Badge>
+          )}
+
+          {/* 🟢 행 액션 버튼 복구 (호버 시 표시) */}
+          {renderItemActions && (
+            <div
+              className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {renderItemActions(item)}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ----------------------------------------------------------------------
+// 3. TreePanel 컴포넌트 (툴바 아이콘 복구)
+// ----------------------------------------------------------------------
+export interface TreePanelProps {
+  title?: string;
+  data: TreeNodeData[];
+  selectedId: string | null;
+  className?: string;
+  onSearch?: (term: string) => void;
+  onSelect: (nodeId: string) => void;
+  onToggleExpand?: () => void;
+  onCreate?: () => void;
+  onUpdate?: () => void; // 🟢 편집 프롭 추가
+  onDelete?: () => void;
+  disableDelete?: boolean;
+  getItemBadge?: (item: TreeNodeData) => BadgeConfig | null;
+  getItemIcon?: (
+    item: TreeNodeData,
+    isOpen: boolean,
+  ) => React.ElementType | null;
+  renderItemActions?: (item: TreeNodeData) => React.ReactNode;
+}
 
 export function TreePanel({
   title = "Explorer",
@@ -72,124 +195,117 @@ export function TreePanel({
   onSearch,
   onSelect,
   onToggleExpand,
-  isAllExpanded = false,
   onCreate,
+  onUpdate,
   onDelete,
   disableDelete = false,
   getItemBadge,
+  getItemIcon,
   renderItemActions,
 }: TreePanelProps) {
-  const renderCardItem = ({
-    item,
-    isSelected,
-    isOpen,
-    hasChildren,
-  }: TreeRenderItemParams) => {
-    const Icon =
-      item.icon || (hasChildren ? (isOpen ? FolderOpen : Folder) : File);
-    const badge = getItemBadge?.(item);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dim, setDim] = useState({ width: 0, height: 0 });
 
-    return (
-      <div
-        className={cn(
-          "flex items-center justify-between w-full py-2 px-3 rounded-md border transition-all group select-none",
-          isSelected
-            ? "bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm"
-            : "bg-white border-transparent hover:border-slate-200 hover:bg-slate-50",
-        )}
-      >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <Icon
-            className={cn(
-              "h-4 w-4 shrink-0",
-              isSelected ? "text-indigo-600" : "text-slate-400",
-            )}
-          />
-          <span className="truncate text-sm font-medium">{item.name}</span>
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) setDim({ width, height });
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
-          {badge && (
-            <Badge
-              variant={badge.variant || "outline"}
-              className={cn(
-                "ml-1 text-[10px] px-1.5 py-0 h-4 leading-none font-normal shrink-0",
-                badge.className,
-              )}
-            >
-              {badge.label}
-            </Badge>
-          )}
-        </div>
-
-        {renderItemActions && (
-          <div
-            className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1 ml-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {renderItemActions(item)}
-          </div>
-        )}
-      </div>
-    );
-  };
+  const treeData = useMemo(() => {
+    const format = (items: TreeNodeData[]): TreeNodeData[] =>
+      items.map((i) => ({
+        ...i,
+        id: String(i.id),
+        children: i.children ? format(i.children) : undefined,
+      }));
+    return format(data || []);
+  }, [data]);
 
   const ToolbarActions = (
-    <>
+    <div className="flex items-center gap-0.5">
       {onToggleExpand && (
         <ToolbarButton
-          icon={isAllExpanded ? Minimize2 : Maximize2}
+          icon={Maximize2}
           onClick={onToggleExpand}
-          title={isAllExpanded ? "전체 접기" : "전체 펼치기"}
-          className="hover:bg-slate-100 text-slate-600 h-7 w-7"
+          title="Toggle"
+          className="h-7 w-7"
         />
       )}
-
-      {onToggleExpand && (onCreate || onDelete) && (
-        <div className="w-px h-3 bg-slate-200 mx-1 self-center" />
-      )}
-
+      <div className="w-px h-3 bg-slate-200 mx-1" />
       {onCreate && (
         <ToolbarButton
           icon={Plus}
           onClick={onCreate}
-          title="새 항목 추가"
-          className="hover:bg-indigo-50 text-indigo-600 h-7 w-7"
+          title="Add"
+          className="text-indigo-600 h-7 w-7"
         />
       )}
-
+      {onUpdate && (
+        <ToolbarButton
+          icon={Pencil}
+          onClick={onUpdate}
+          title="Edit"
+          className="text-slate-600 h-7 w-7"
+        />
+      )}
       {onDelete && (
         <ToolbarButton
           icon={Trash2}
           onClick={onDelete}
           disabled={disableDelete}
-          title="삭제"
-          className="text-red-500 hover:bg-red-50 disabled:opacity-30 h-7 w-7"
+          title="Delete"
+          className="text-red-500 h-7 w-7"
         />
       )}
-    </>
+    </div>
   );
 
   return (
     <SidePanel
       title={title}
-      className={cn("w-full h-full flex flex-col", className)}
+      className={cn(
+        "w-full h-full flex flex-col",
+        "[&>div:nth-child(2)]:overflow-hidden [&>div:nth-child(2)]:flex [&>div:nth-child(2)]:flex-col [&>div:nth-child(2)]:flex-1",
+        className,
+      )}
       onSearch={onSearch}
       actions={ToolbarActions}
     >
-      <div className="h-full pr-2">
-        {data.length > 0 ? (
-          <TreeView
-            data={data}
-            initialSelectedItemId={selectedId || undefined}
-            onSelectChange={(item) => item && onSelect(item.id)}
-            expandAll={isAllExpanded}
-            className="h-full"
-            renderItem={renderCardItem}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center h-40 text-slate-400 text-sm">
-            <span>데이터가 없습니다.</span>
-          </div>
-        )}
+      <div className="flex-1 w-full min-h-0 mt-2 relative overflow-hidden">
+        <div ref={containerRef} className="absolute inset-0">
+          {treeData.length > 0 && dim.height > 0 ? (
+            <TreePanelContext.Provider
+              value={{ getItemBadge, getItemIcon, renderItemActions }}
+            >
+              <Tree
+                data={treeData}
+                selection={selectedId || undefined}
+                width={dim.width}
+                height={dim.height}
+                indent={20}
+                rowHeight={34}
+                onSelect={(nodes) => nodes.length > 0 && onSelect(nodes[0].id)}
+                className="outline-none scrollbar-thin scrollbar-thumb-slate-200"
+                disableDrag
+                disableEdit
+              >
+                {NodeRenderer}
+              </Tree>
+            </TreePanelContext.Provider>
+          ) : treeData.length === 0 ? (
+            <div className="flex items-center justify-center h-40 text-slate-400 text-sm">
+              데이터가 없습니다.
+            </div>
+          ) : null}
+        </div>
       </div>
     </SidePanel>
   );

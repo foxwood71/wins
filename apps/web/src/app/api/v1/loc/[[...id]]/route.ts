@@ -65,10 +65,16 @@ export async function POST(request: Request) {
 // =============================================================================
 // DELETE: 삭제
 // =============================================================================
-export async function DELETE(request: Request) {
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id?: string[] }> },
+) {
   try {
+    // 🟢 [핵심] params를 먼저 기다려(await) 줍니다.
+    const resolvedParams = await params;
     const { searchParams } = new URL(request.url);
-    const idParam = searchParams.get("id");
+
+    const idParam = resolvedParams.id?.[0];
     const typeParam = searchParams.get("type");
 
     if (!idParam || !typeParam) {

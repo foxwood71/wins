@@ -2,6 +2,7 @@
 "use server";
 
 import { db } from "@/shared/lib/db";
+import { getErrorMessage } from "@/shared/lib/utils";
 import { Facility, Space, CreateLocationDto } from "@/loc/model/types";
 
 // DB 에러 타입 정의
@@ -98,7 +99,7 @@ export async function getLocationList(): Promise<(Facility | Space)[]> {
     return result;
   } catch (error: unknown) {
     console.error("🔥 [DB 조회 실패]:", error);
-    throw new Error("데이터 목록을 불러오지 못했습니다.");
+    throw new Error(`목록 조회 실패: ${getErrorMessage(error)}`);
   }
 }
 
@@ -211,7 +212,7 @@ export async function createLocation(
   } catch (error: unknown) {
     console.error("Database Error in createLocation:", error);
     if (isPostgresError(error) && error.code === "23505") {
-      throw new Error("이미 존재하는 코드입니다.");
+      throw new Error(`이미 존재하는 코드입니다: ${getErrorMessage(error)}`);
     }
     throw error;
   }

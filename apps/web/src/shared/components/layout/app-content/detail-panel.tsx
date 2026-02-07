@@ -63,7 +63,7 @@ export function DetailPanel({
                 onClick={onEdit}
                 className="h-9 px-6 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold rounded-lg text-[13px] shadow-sm border border-indigo-200"
               >
-                <Pencil className="h-3.5 w-3.5 mr-2" /> 정보 수정
+                <Pencil className="h-3.5 w-3.5 mr-2" /> 수정
               </Button>
             ) : (
               <>

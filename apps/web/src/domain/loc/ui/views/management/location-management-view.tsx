@@ -32,6 +32,8 @@ export function LocationManagementView() {
     Partial<Facility> | Partial<Space>
   >({});
 
+  const [isEditing, setIsEditing] = useState(false);
+
   // ----------------------------------------------------------------------
   // Handlers
   // ----------------------------------------------------------------------
@@ -73,9 +75,14 @@ export function LocationManagementView() {
     setCreationMode(mode);
   };
 
+  const handleEdit = () => {
+    setIsEditing(true);
+  };
+
   const handleCancel = () => {
     setCreationMode(null);
     setInitialPayload({});
+    setIsEditing(false);
   };
 
   const handleSave = async (data: Facility | Space) => {
@@ -102,6 +109,7 @@ export function LocationManagementView() {
           <FacilityDetail
             mode="create"
             facility={initialPayload as Partial<Facility>}
+            onEdit={() => {}}
             onCancel={handleCancel}
             onSave={handleSave}
           />
@@ -112,6 +120,7 @@ export function LocationManagementView() {
             mode="create"
             space={initialPayload as Partial<Space>}
             ancestors={[]}
+            onEdit={() => {}}
             onCancel={handleCancel}
             onSave={handleSave}
             onUpdateFunctions={() => {}}
@@ -127,10 +136,13 @@ export function LocationManagementView() {
         return (
           <FacilityDetail
             key={`fac-${state.selectedData.id}`}
-            mode="view"
+            mode={isEditing ? "edit" : "view"}
             facility={state.selectedData as Facility}
+            onEdit={handleEdit}
             onSave={handleSave}
-            onCancel={() => {}}
+            onCancel={() => {
+              setIsEditing(false);
+            }}
             onDelete={actions.handleDelete}
           />
         );
@@ -138,10 +150,13 @@ export function LocationManagementView() {
         return (
           <SpaceDetail
             key={`space-${state.selectedData.id}`}
-            mode="view"
+            mode={isEditing ? "edit" : "view"}
             space={state.selectedData as Space}
+            onEdit={handleEdit}
             onSave={handleSave}
-            onCancel={() => {}}
+            onCancel={() => {
+              setIsEditing(false);
+            }}
             onDelete={actions.handleDelete}
             onUpdateFunctions={() => {}}
             onUpdateTypes={() => {}}
